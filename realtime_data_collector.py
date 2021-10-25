@@ -44,60 +44,43 @@ ib.sleep(2)
 #print(md.bid, md.bidSize, md.ask, md.askSize, md.last, md.lastSize, md.prevBidSize, md.prevAskSize, md.volume, md.open, md.high, md.low, md.close, md.ticks)
 
 queue = []
-MAX_NUM = 500
+MAX_NUM = 1000
 condition = Condition()
 
 def onPendingTicker(tickers):
     global queue
-    print("============= pending ticker event received ==============")
+    print("Pending ticker event received.")
     condition.acquire()
     if len(queue) == MAX_NUM:
         print("Queue is totally full.")
         saveDataInCSV() 
-        condition.wait()
-        #condition.notify()
-        condition.release()
-        print("Notified the producer")
     for t in tickers:
         #print(t.time, t.bid, t.bidSize, t.ask, t.askSize, t.last, t.lastSize, t.prevBidSize, t.prevAskSize, t.volume, t.open, t.high, t.low, t.close, t.ticks)
         data=MarketData(t.time, t.bid, t.bidSize, t.ask, t.askSize, t.last, t.lastSize, t.prevBidSize, t.prevAskSize, t.volume, t.open, t.high, t.low, t.close)
         queue.append(data)
-    #time.sleep(10)    
+    #time.sleep(10)  
+    condition.release()  
 
 ib.pendingTickersEvent += onPendingTicker
 
 def saveDataInCSV():
-    print("saveDataInCSV function get called.")
+    condition.acquire()
     global queue
-    print(queue)
-    # while True:
-    #     condition.acquire()
-    #     if not queue:
-    #         print("Queue is empty")               
-    #         condition.notify()
-    #         condition.release()
-    #         print("Notify onPendingTicker()")
-    #         condition.wait()
-    #     data = queue.pop(0)
-    #     print("data ===> ", data)
-    header = ['time','bid','bidSize','ask','askSize','last','lastSize', 'prevBidSize', 'prevAskSize','volume','open','high','low','close']
+    header = ['Time','Bid','BidSize','Ask','AskSize','Last','LastSize', 'PrevBidSize', 'PrevAskSize','Volume','Open','High','Low','Close']
     marketData = []
     data = []
-    with open('livedata_3.csv', 'w', encoding='UTF8', newline='') as f:
+    fileName = (str(int(time.time()))+'.csv')
+    with open(fileName, 'w', encoding='UTF8', newline='') as f:
         writer = csv.writer(f)
 
         # write the header
-        writer.writerow(header)
-         
+        writer.writerow(header) 
         while True: 
             if not queue:
                 break
             md = queue.pop(0) 
             # write the data
             writer.writerow([md.time,md.bid, md.bidSize, md.ask, md.askSize, md.last, md.lastSize, md.prevBidSize, md.prevAskSize, md.volume, md.open, md.high, md.low, md.close])
-    condition.notify()
     condition.release()
-    print("Notify onPendingTicker()")
-    condition.wait()
 
 ib.run()
