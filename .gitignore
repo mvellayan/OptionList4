@@ -1,4 +1,9 @@
 # Byte-compiled / optimized / DLL files
+
+#python environment
+bin/
+pyvenv.cfg
+
 __pycache__/
 *.py[cod]
 *$py.class
