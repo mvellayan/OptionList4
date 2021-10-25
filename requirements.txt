@@ -1,2 +1,9 @@
 ib_insync
 bs4
+ipython
+pandas
+#
+# from threading import Thread, Condition
+# import time
+# import random
+# import csv
