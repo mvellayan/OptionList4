@@ -5,6 +5,8 @@ from threading import Thread, Condition
 import time
 import random
 import csv
+import json
+from pprint import pprint
 
 
 class MarketData:
@@ -24,16 +26,29 @@ class MarketData:
         self.low = low
         self.close = close
 
+def readConfig(fileName):
+    data = {}
+    try:
+        # open file and load data
+        f = open(fileName, 'r')
+        data = json.load(f)
+        print("\n\nINFO: Parameter File:")
+        pprint(data)
+        f.close()
+    except OSError:
+        print('cannot open file', fileName)
+        sys.exit(1)
+    # verify fields exist
+    print("\nINFO: parameters Check:")
+    print(data["tws_port"], data["file_max_rows"], data["contracts"])
+    print("\n")
+    return data
+
+
 ib = IB()
+config = readConfig("config/config.json")
 
-# use this instead for IB Gateway
-#ib.connect('127.0.0.1', 7497, clientId=1)
-
-# us this for TWS (Workstation)
-#ib.connect('127.0.0.1', 7497, clientId=1)
-
-
-ib.connect('127.0.0.1', 4002, clientId=1)
+ib.connect('127.0.0.1', config["tws_port"], clientId=1)
 
 stock = Stock('AMD', 'SMART', 'USD')
 
@@ -44,7 +59,7 @@ ib.sleep(2)
 #print(md.bid, md.bidSize, md.ask, md.askSize, md.last, md.lastSize, md.prevBidSize, md.prevAskSize, md.volume, md.open, md.high, md.low, md.close, md.ticks)
 
 queue = []
-MAX_NUM = 1000
+MAX_NUM = 100
 condition = Condition()
 
 def onPendingTicker(tickers):

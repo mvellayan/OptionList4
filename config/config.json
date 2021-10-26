@@ -1,0 +1,17 @@
+{
+  "tws_port" : 4002,
+  "file_max_rows" : 1000,
+
+  "contracts" : [
+    { "ConId" : 265598, "Symbol": "AAPL",  "SecType"  : "STK" },
+    { "ConId" : 107113386, "Symbol": "FB",  "SecType"  : "STK" },
+    { "ConId" : 513292798, "Symbol": "AAPL  211029C00147000",  "SecType"  : "OPT" },
+
+    { "ConId" : 513292798, "Symbol": "AAPL  211029C00147000",  "SecType"  : "OPT" },
+    { "ConId" : 513292832, "Symbol": "AAPL  211029C00148000",  "SecType"  : "OPT" },
+    { "ConId" : 513292873, "Symbol": "AAPL  211029C00149000",  "SecType"  : "OPT" },
+    { "ConId" : 513292897, "Symbol": "AAPL  211029C00150000",  "SecType"  : "OPT" },
+    { "ConId" : 513292943, "Symbol": "AAPL  211029C00155000",  "SecType"  : "OPT" }
+
+  ]
+}
