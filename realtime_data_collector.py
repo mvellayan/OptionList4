@@ -3,11 +3,13 @@ from IPython.display import display, clear_output
 import pandas as pd
 from threading import Thread, Condition
 import time
+from datetime import datetime
 import random
 import csv
 import json
 from pprint import pprint
-
+import os
+import errno
 
 class MarketData:
     def __init__(self,time,bid,bidSize,ask,askSize,last,lastSize, prevBidSize, prevAskSize,volume,open,high,low,close):
@@ -84,10 +86,27 @@ def saveDataInCSV():
     header = ['Time','Bid','BidSize','Ask','AskSize','Last','LastSize', 'PrevBidSize', 'PrevAskSize','Volume','Open','High','Low','Close']
     marketData = []
     data = []
-    fileName = (str(int(time.time()))+'.csv')
+    now = datetime.now()  # current date and time
+    year_str = now.strftime("%Y")
+    month_str = now.strftime("%m")
+    day_str = now.strftime("%d")
+    time_str = now.strftime("%H%M%S")
+    #making contract name to file name:
+    #contractName = ''.join(re.findall('[a-zA-Z0-9]+', json.contract.name))
+
+    fileName = "data/" + year_str + "/" + month_str + "/" + day_str + "/" + time_str    #(str(int(time.time()))+'.csv')
+
+    if not os.path.exists(os.path.dirname(fileName)):
+        try:
+            os.makedirs(os.path.dirname(fileName))
+        except OSError as exc:  # Guard against race condition
+            if exc.errno != errno.EEXIST:
+                print ("ERROR")
+                print ( exc )
+                #raise
+
     with open(fileName, 'w', encoding='UTF8', newline='') as f:
         writer = csv.writer(f)
-
         # write the header
         writer.writerow(header) 
         while True: 

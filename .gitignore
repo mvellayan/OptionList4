@@ -3,9 +3,12 @@
 #python environment
 bin/
 pyvenv.cfg
+clientportal.gw/
 
 #ipython
 share/man/man1/ipython.1.gz
+#dont commit the data
+data/
 
 __pycache__/
 *.py[cod]
