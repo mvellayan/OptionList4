@@ -4,6 +4,9 @@
 bin/
 pyvenv.cfg
 
+#ipython
+share/man/man1/ipython.1.gz
+
 __pycache__/
 *.py[cod]
 *$py.class
