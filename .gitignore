@@ -1,6 +1,7 @@
 # Byte-compiled / optimized / DLL files
 
 #python environment
+.idea/
 bin/
 pyvenv.cfg
 clientportal.gw/

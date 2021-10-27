@@ -1,27 +1,28 @@
-from ib_insync import *
-from IPython.display import display, clear_output
-import pandas as pd
-from threading import Thread, Condition
-import time
-from datetime import datetime
-import random
 import csv
-import json
-from pprint import pprint
-import os
 import errno
+import json
+import os
+import re
+from datetime import datetime
+from pprint import pprint
+from threading import Condition
+
+from ib_insync import *
 
 #
 # see: https://github.com/erdewit/ib_insync
 #
 
-queue = []
-MAX_NUM = 100
+queues = {}
+queues_start_time = datetime.now()
+
+config = {}
 condition = Condition()
 
 
 class MarketData:
-    def __init__(self,time,bid,bidSize,ask,askSize,last,lastSize, prevBidSize, prevAskSize,volume,open,high,low,close):
+    def __init__(self, contract, time,bid,bidSize,ask,askSize,last,lastSize, prevBidSize, prevAskSize,volume,open,high,low,close):
+        self.contract = contract
         self.time = time
         self.bid = bid
         self.bidSize = bidSize
@@ -51,39 +52,45 @@ def readConfig(fileName):
         sys.exit(1)
     # verify fields exist
     print("\nINFO: parameters Check:")
-    print(data["tws_port"], data["file_max_rows"], data["contracts"])
+    print(data["tws_port"], data["file_flush_seconds"], data["contracts"])
     print("\n")
     return data
 
 def onPendingTicker(tickers):
-    global queue
+    global queues, queues_start_time
     condition.acquire()
-    if len(queue) == MAX_NUM:
-        print("Queue is totally full.")
+
+    if  (datetime.now() - queues_start_time).total_seconds() >= config["file_flush_seconds"]:
+        print("Queue limit is reached, writing to file.")
+        queues_start_time = datetime.now()
         saveDataInCSV() 
     for t in tickers:
-        print("Received [" + t.time.strftime("%m/%d/%Y, %H:%M:%S.%f") + "] ["+ t.contract.symbol +"]")
+        print("Received [" + t.time.strftime("%Y%m%d%H%M%S.%f") + "] ["+ t.contract.symbol +"]")
         #print(t.time, t.bid, t.bidSize, t.ask, t.askSize, t.last, t.lastSize, t.prevBidSize, t.prevAskSize, t.volume, t.open, t.high, t.low, t.close, t.ticks)
-        data=MarketData(t.time, t.bid, t.bidSize, t.ask, t.askSize, t.last, t.lastSize, t.prevBidSize, t.prevAskSize, t.volume, t.open, t.high, t.low, t.close)
+        data = MarketData(t.contract, t.time, t.bid, t.bidSize, t.ask, t.askSize, t.last, t.lastSize, t.prevBidSize, t.prevAskSize, t.volume, t.open, t.high, t.low, t.close)
+        if t.contract.symbol in queues:
+            queue = queues[t.contract.symbol]
+        else:
+            queue = []
+            queues[t.contract.symbol] = queue
         queue.append(data)
     #time.sleep(10)  
     condition.release()
 
-def saveDataInCSV():
-    condition.acquire()
-    global queue
-    header = ['Time','Bid','BidSize','Ask','AskSize','Last','LastSize', 'PrevBidSize', 'PrevAskSize','Volume','Open','High','Low','Close']
-    marketData = []
-    data = []
+
+def getFileName(symbol):
     now = datetime.now()  # current date and time
     year_str = now.strftime("%Y")
     month_str = now.strftime("%m")
     day_str = now.strftime("%d")
     time_str = now.strftime("%H%M%S")
     #making contract name to file name:
-    #contractName = ''.join(re.findall('[a-zA-Z0-9]+', json.contract.name))
-    fileName = "data/" + year_str + "/" + month_str + "/" + day_str + "/" + time_str    #(str(int(time.time()))+'.csv')
+    contractName = ''.join(re.findall('[a-zA-Z0-9]+', symbol))
+    fileName = "data/" + year_str + "/" + month_str + "/" + day_str + "/" + contractName + "_" + time_str   +'.csv'
+    return fileName
 
+
+def makeDirectory(fileName):
     if not os.path.exists(os.path.dirname(fileName)):
         try:
             os.makedirs(os.path.dirname(fileName))
@@ -93,34 +100,64 @@ def saveDataInCSV():
                 print ( exc )
                 #raise
 
-    with open(fileName, 'w', encoding='UTF8', newline='') as f:
-        writer = csv.writer(f)
-        # write the header
-        writer.writerow(header) 
-        while True: 
-            if not queue:
-                break
-            md = queue.pop(0) 
-            # write the data
-            writer.writerow([md.time,md.bid, md.bidSize, md.ask, md.askSize, md.last, md.lastSize, md.prevBidSize, md.prevAskSize, md.volume, md.open, md.high, md.low, md.close])
+
+def saveDataInCSV():
+    condition.acquire()
+    global queues
+
+    #old_queues = queues
+    #queues = {}
+    #condition.release()
+    #Move all this to new thread ??
+
+    header = ['ConId', 'Symbol', 'Time', 'Bid', 'BidSize', 'Ask', 'AskSize', 'Last', 'LastSize', 'PrevBidSize',
+              'PrevAskSize', 'Volume', 'Open', 'High', 'Low', 'Close']
+    for symbol, queue in queues.items():
+        if len(queue) == 0:
+            break
+        fileName = getFileName(symbol)
+        makeDirectory(fileName)
+        with open(fileName, 'w', encoding='UTF8', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(header)
+            while True:
+                if not queue:
+                    break
+                md = queue.pop(0)
+                # write the data
+                writer.writerow( [ md.contract.conId, md.contract.symbol, md.time.strftime("%Y%m%d%H%M%S.%f"), md.bid, md.bidSize, md.ask, md.askSize, md.last, md.lastSize,
+                                   md.prevBidSize,  md.prevAskSize, md.volume, md.open, md.high, md.low, md.close])
     condition.release()
 
 
+def getContract(sec):
+    print("Processing contract: ", sec["ConId"], sec["Symbol"], sec["SecType"] )
+    contract = Contract()
+    contract.symbol = sec["Symbol"]
+    contract.conId = sec["ConId"]
+    contract.secType = sec["SecType"]
+    contract.exchange = "SMART"
+    contract.currency = "USD"
+    return contract
+
+
 def main():
+    global config
     config = readConfig("config/config.json")
 
     ib = IB()
     ib.connect('127.0.0.1', config["tws_port"], clientId=1)
 
     stock = Stock('AMD', 'SMART', 'USD')
-    md = ib.reqMktData(stock, '', False, False)
+    for sec in config["contracts"]:
+        con = getContract(sec)
+        ib.reqMktData(con, '', False, False)
+        #pprint(sec)
+
     ib.sleep(2)
-
-    # print(md.time,md.bidSize, md.bid, md.ask, md.askSize, md.high, md.low, md.close)
-    # print(md.bid, md.bidSize, md.ask, md.askSize, md.last, md.lastSize, md.prevBidSize, md.prevAskSize, md.volume, md.open, md.high, md.low, md.close, md.ticks)
-
     ib.pendingTickersEvent += onPendingTicker
     ib.run()
+
 
 if __name__ == "__main__":
     main()
