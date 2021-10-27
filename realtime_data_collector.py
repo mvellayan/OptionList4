@@ -11,6 +11,15 @@ from pprint import pprint
 import os
 import errno
 
+#
+# see: https://github.com/erdewit/ib_insync
+#
+
+queue = []
+MAX_NUM = 100
+condition = Condition()
+
+
 class MarketData:
     def __init__(self,time,bid,bidSize,ask,askSize,last,lastSize, prevBidSize, prevAskSize,volume,open,high,low,close):
         self.time = time
@@ -46,39 +55,19 @@ def readConfig(fileName):
     print("\n")
     return data
 
-
-ib = IB()
-config = readConfig("config/config.json")
-
-ib.connect('127.0.0.1', config["tws_port"], clientId=1)
-
-stock = Stock('AMD', 'SMART', 'USD')
-
-md = ib.reqMktData(stock, '', False, False)
-ib.sleep(2)
-
-#print(md.time,md.bidSize, md.bid, md.ask, md.askSize, md.high, md.low, md.close)
-#print(md.bid, md.bidSize, md.ask, md.askSize, md.last, md.lastSize, md.prevBidSize, md.prevAskSize, md.volume, md.open, md.high, md.low, md.close, md.ticks)
-
-queue = []
-MAX_NUM = 100
-condition = Condition()
-
 def onPendingTicker(tickers):
     global queue
-    print("Pending ticker event received.")
     condition.acquire()
     if len(queue) == MAX_NUM:
         print("Queue is totally full.")
         saveDataInCSV() 
     for t in tickers:
+        print("Received [" + t.time.strftime("%m/%d/%Y, %H:%M:%S.%f") + "] ["+ t.contract.symbol +"]")
         #print(t.time, t.bid, t.bidSize, t.ask, t.askSize, t.last, t.lastSize, t.prevBidSize, t.prevAskSize, t.volume, t.open, t.high, t.low, t.close, t.ticks)
         data=MarketData(t.time, t.bid, t.bidSize, t.ask, t.askSize, t.last, t.lastSize, t.prevBidSize, t.prevAskSize, t.volume, t.open, t.high, t.low, t.close)
         queue.append(data)
     #time.sleep(10)  
-    condition.release()  
-
-ib.pendingTickersEvent += onPendingTicker
+    condition.release()
 
 def saveDataInCSV():
     condition.acquire()
@@ -93,7 +82,6 @@ def saveDataInCSV():
     time_str = now.strftime("%H%M%S")
     #making contract name to file name:
     #contractName = ''.join(re.findall('[a-zA-Z0-9]+', json.contract.name))
-
     fileName = "data/" + year_str + "/" + month_str + "/" + day_str + "/" + time_str    #(str(int(time.time()))+'.csv')
 
     if not os.path.exists(os.path.dirname(fileName)):
@@ -117,4 +105,22 @@ def saveDataInCSV():
             writer.writerow([md.time,md.bid, md.bidSize, md.ask, md.askSize, md.last, md.lastSize, md.prevBidSize, md.prevAskSize, md.volume, md.open, md.high, md.low, md.close])
     condition.release()
 
-ib.run()
+
+def main():
+    config = readConfig("config/config.json")
+
+    ib = IB()
+    ib.connect('127.0.0.1', config["tws_port"], clientId=1)
+
+    stock = Stock('AMD', 'SMART', 'USD')
+    md = ib.reqMktData(stock, '', False, False)
+    ib.sleep(2)
+
+    # print(md.time,md.bidSize, md.bid, md.ask, md.askSize, md.high, md.low, md.close)
+    # print(md.bid, md.bidSize, md.ask, md.askSize, md.last, md.lastSize, md.prevBidSize, md.prevAskSize, md.volume, md.open, md.high, md.low, md.close, md.ticks)
+
+    ib.pendingTickersEvent += onPendingTicker
+    ib.run()
+
+if __name__ == "__main__":
+    main()
