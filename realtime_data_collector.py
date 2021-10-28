@@ -6,37 +6,18 @@ import re
 from datetime import datetime
 from pprint import pprint
 from threading import Condition
+import math
 
+import pytz
 from ib_insync import *
 
 #
 # see: https://github.com/erdewit/ib_insync
-#
-
 queues = {}
 queues_start_time = datetime.now()
-
 config = {}
 condition = Condition()
 
-
-class MarketData:
-    def __init__(self, contract, time,bid,bidSize,ask,askSize,last,lastSize, prevBidSize, prevAskSize,volume,open,high,low,close):
-        self.contract = contract
-        self.time = time
-        self.bid = bid
-        self.bidSize = bidSize
-        self.ask = ask
-        self.askSize = askSize
-        self.last = last
-        self.lastSize = lastSize
-        self.prevBidSize = prevBidSize
-        self.prevAskSize = prevAskSize
-        self.volume = volume
-        self.open = open
-        self.high = high
-        self.low = low
-        self.close = close
 
 def readConfig(fileName):
     data = {}
@@ -56,26 +37,16 @@ def readConfig(fileName):
     print("\n")
     return data
 
-def onPendingTicker(tickers):
-    global queues, queues_start_time
-    condition.acquire()
 
-    if  (datetime.now() - queues_start_time).total_seconds() >= config["file_flush_seconds"]:
-        print("Queue limit is reached, writing to file.")
-        queues_start_time = datetime.now()
-        saveDataInCSV() 
-    for t in tickers:
-        print("Received [" + t.time.strftime("%Y%m%d%H%M%S.%f") + "] ["+ t.contract.symbol +"]")
-        #print(t.time, t.bid, t.bidSize, t.ask, t.askSize, t.last, t.lastSize, t.prevBidSize, t.prevAskSize, t.volume, t.open, t.high, t.low, t.close, t.ticks)
-        data = MarketData(t.contract, t.time, t.bid, t.bidSize, t.ask, t.askSize, t.last, t.lastSize, t.prevBidSize, t.prevAskSize, t.volume, t.open, t.high, t.low, t.close)
-        if t.contract.symbol in queues:
-            queue = queues[t.contract.symbol]
-        else:
-            queue = []
-            queues[t.contract.symbol] = queue
-        queue.append(data)
-    #time.sleep(10)  
-    condition.release()
+def getContract(sec):
+    print("Processing contract: ", sec["ConId"], sec["Symbol"], sec["SecType"])
+    contract = Contract()
+    contract.symbol = sec["Symbol"]
+    contract.conId = sec["ConId"]
+    contract.secType = sec["SecType"]
+    contract.exchange = "SMART"
+    contract.currency = "USD"
+    return contract
 
 
 def getFileName(symbol):
@@ -86,7 +57,9 @@ def getFileName(symbol):
     time_str = now.strftime("%H%M%S")
     #making contract name to file name:
     contractName = ''.join(re.findall('[a-zA-Z0-9]+', symbol))
-    fileName = "data/" + year_str + "/" + month_str + "/" + day_str + "/" + contractName + "_" + time_str   +'.csv'
+    fileName = "data/" + year_str + "/" + month_str + "/" + day_str + "/" + contractName + "_" \
+               + year_str + month_str + day_str + "_" + time_str +'.csv'
+    makeDirectory(fileName)
     return fileName
 
 
@@ -100,6 +73,49 @@ def makeDirectory(fileName):
                 print ( exc )
                 #raise
 
+class MarketData:
+    def __init__(self, ticker):
+        self.conId = ticker.contract.conId
+        self.symbol = ticker.contract.symbol
+        self.quoteTime = ticker.time
+        self.bid = ticker.bid
+        self.bidSize = ticker.bidSize
+        self.ask = ticker.ask
+        self.askSize = ticker.askSize
+        self.last = ticker.last
+        self.lastSize = ticker.lastSize
+        self.volume = ticker.volume
+
+        if math.isnan(ticker.histVolatility):
+            self.histVolatility = ""
+        else:
+            self.histVolatility = ticker.histVolatility
+        if math.isnan(ticker.impliedVolatility):
+            self.impliedVolatility = ""
+        else:
+            self.impliedVolatility = ticker.impliedVolatility
+
+
+def onPendingTicker(tickers):
+    global queues, queues_start_time
+    condition.acquire()
+
+    if  (datetime.now() - queues_start_time).total_seconds() >= config["file_flush_seconds"]:
+        print("Writing to file.")
+        queues_start_time = datetime.now()
+        saveDataInCSV()
+
+    for t in tickers:
+        indexStr = t.time.strftime("%Y%m%d%H%M%S")
+        # print("Received [" + t.time.strftime("%Y%m%d%H%M%S.%f") + "] [" + indexStr + "]", t)
+        if t.contract.symbol in queues:
+            queue = queues[t.contract.symbol]
+        else:
+            queue = {}
+            queues[t.contract.symbol] = queue
+        queue[indexStr] = MarketData(t)
+    condition.release()
+
 
 def saveDataInCSV():
     condition.acquire()
@@ -110,35 +126,28 @@ def saveDataInCSV():
     #condition.release()
     #Move all this to new thread ??
 
-    header = ['ConId', 'Symbol', 'Time', 'Bid', 'BidSize', 'Ask', 'AskSize', 'Last', 'LastSize', 'PrevBidSize',
-              'PrevAskSize', 'Volume', 'Open', 'High', 'Low', 'Close']
-    for symbol, queue in queues.items():
+    header = ['ConId', 'Symbol', 'Time',
+              'Bid', 'BidSize', 'Ask', 'AskSize',
+              'Last', 'LastSize',
+              'Volume', 'histVolatility', 'impliedVolatility']
+    for symbol in queues:
+        queue = queues.get(symbol)
+        #print(symbol, "->")
+        #pprint(queue)
         if len(queue) == 0:
             break
-        fileName = getFileName(symbol)
-        makeDirectory(fileName)
-        with open(fileName, 'w', encoding='UTF8', newline='') as f:
+        with open(getFileName(symbol), 'w', encoding='UTF8', newline='') as f:
             writer = csv.writer(f)
             writer.writerow(header)
-            while True:
-                if not queue:
-                    break
-                md = queue.pop(0)
-                # write the data
-                writer.writerow( [ md.contract.conId, md.contract.symbol, md.time.strftime("%Y%m%d%H%M%S.%f"), md.bid, md.bidSize, md.ask, md.askSize, md.last, md.lastSize,
-                                   md.prevBidSize,  md.prevAskSize, md.volume, md.open, md.high, md.low, md.close])
+            for timeStamp in queue:
+                ticker = queue.get(timeStamp)
+                quoteTime = ticker.quoteTime.astimezone(pytz.timezone('US/Eastern')).strftime("%Y%m%d%H%M%S")
+                # print(timeStamp, "->>", quoteTime, ticker)
+                writer.writerow( [ticker.conId, ticker.symbol, quoteTime, ticker.bid,
+                                  ticker.bidSize, ticker.ask, ticker.askSize, ticker.last, ticker.lastSize,
+                                  ticker.volume, ticker.histVolatility, ticker.impliedVolatility])
+        queue.clear()
     condition.release()
-
-
-def getContract(sec):
-    print("Processing contract: ", sec["ConId"], sec["Symbol"], sec["SecType"] )
-    contract = Contract()
-    contract.symbol = sec["Symbol"]
-    contract.conId = sec["ConId"]
-    contract.secType = sec["SecType"]
-    contract.exchange = "SMART"
-    contract.currency = "USD"
-    return contract
 
 
 def main():
@@ -151,7 +160,7 @@ def main():
     stock = Stock('AMD', 'SMART', 'USD')
     for sec in config["contracts"]:
         con = getContract(sec)
-        ib.reqMktData(con, '', False, False)
+        ib.reqMktData(con, '104,106', False, False)
         #pprint(sec)
 
     ib.sleep(2)
