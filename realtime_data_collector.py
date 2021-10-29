@@ -8,7 +8,7 @@ import sys
 from datetime import datetime
 from pprint import pprint
 from threading import Condition
-from lib import FileUtil, IBUtil
+from utils import FileUtil, IBUtil
 
 import pytz
 from ib_insync import *

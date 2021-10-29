@@ -1,6 +1,6 @@
 from ib_insync import *
 from pprint import pprint
-from lib import FileUtil, IBUtil
+from utils import FileUtil, IBUtil
 import sys
 
 def main(configFileName):
