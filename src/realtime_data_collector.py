@@ -8,6 +8,7 @@ import sys
 from datetime import datetime
 from pprint import pprint
 from threading import Condition
+from lib import FileUtil, IBUtil
 
 import pytz
 from ib_insync import *
@@ -18,83 +19,6 @@ queues = {}
 queues_start_time = datetime.now()
 config = {}
 condition = Condition()
-
-
-def readConfig(fileName):
-    data = {}
-    try:
-        # open file and load data
-        f = open(fileName, 'r')
-        data = json.load(f)
-        print("\n\nINFO: Parameter File:")
-        pprint(data)
-        f.close()
-    except OSError:
-        print('cannot open file', fileName)
-        sys.exit(1)
-    # verify fields exist
-    print("\nINFO: parameters Check:")
-    print(data["tws_port"], data["file_flush_seconds"], data["contracts"])
-    print("\n")
-    return data
-
-
-def getContract(sec):
-    print("Processing contract: ", sec["ConId"], sec["Symbol"], sec["SecType"])
-    contract = Contract()
-    contract.symbol = sec["Symbol"]
-    contract.conId = sec["ConId"]
-    contract.secType = sec["SecType"]
-    contract.exchange = "SMART"
-    contract.currency = "USD"
-    return contract
-
-
-def getFileName(symbol):
-    now = datetime.now()  # current date and time
-    year_str = now.strftime("%Y")
-    month_str = now.strftime("%m")
-    day_str = now.strftime("%d")
-    time_str = now.strftime("%H%M%S")
-    #making contract name to file name:
-    contractName = ''.join(re.findall('[a-zA-Z0-9]+', symbol))
-    fileName = "data/" + year_str + "/" + month_str + "/" + day_str + "/" + contractName + "_" \
-               + year_str + month_str + day_str + "_" + time_str +'.csv'
-    makeDirectory(fileName)
-    return fileName
-
-
-def makeDirectory(fileName):
-    if not os.path.exists(os.path.dirname(fileName)):
-        try:
-            os.makedirs(os.path.dirname(fileName))
-        except OSError as exc:  # Guard against race condition
-            if exc.errno != errno.EEXIST:
-                print ("ERROR")
-                print ( exc )
-                #raise
-
-class MarketData:
-    def __init__(self, ticker):
-        self.conId = ticker.contract.conId
-        self.symbol = ticker.contract.symbol
-        self.quoteTime = ticker.time
-        self.bid = ticker.bid
-        self.bidSize = ticker.bidSize
-        self.ask = ticker.ask
-        self.askSize = ticker.askSize
-        self.last = ticker.last
-        self.lastSize = ticker.lastSize
-        self.volume = ticker.volume
-
-        if math.isnan(ticker.histVolatility):
-            self.histVolatility = ""
-        else:
-            self.histVolatility = ticker.histVolatility
-        if math.isnan(ticker.impliedVolatility):
-            self.impliedVolatility = ""
-        else:
-            self.impliedVolatility = ticker.impliedVolatility
 
 
 def onPendingTicker(tickers):
@@ -114,7 +38,7 @@ def onPendingTicker(tickers):
         else:
             queue = {}
             queues[t.contract.symbol] = queue
-        queue[indexStr] = MarketData(t)
+        queue[indexStr] = IBUtil.MarketData(t)
     condition.release()
 
 
@@ -137,7 +61,7 @@ def saveDataInCSV():
         #pprint(queue)
         if len(queue) == 0:
             break
-        with open(getFileName(symbol), 'w', encoding='UTF8', newline='') as f:
+        with open(FileUtil.getFileName(symbol), 'w', encoding='UTF8', newline='') as f:
             writer = csv.writer(f)
             writer.writerow(header)
             for timeStamp in queue:
@@ -155,14 +79,14 @@ def main(configFileName):
 
 
     global config
-    config = readConfig(configFileName)
+    config = FileUtil.readConfig(configFileName)
 
     ib = IB()
     ib.connect('127.0.0.1', config["tws_port"], clientId=1)
 
     stock = Stock('AMD', 'SMART', 'USD')
     for sec in config["contracts"]:
-        con = getContract(sec)
+        con = IBUtil.getContract(sec)
         ib.reqMktData(con, '104,106', False, False)
         #pprint(sec)
 
@@ -172,7 +96,7 @@ def main(configFileName):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2    :
+    if len(sys.argv) < 2:
         print("\n\nUsage: collect_data.py <config_file.yml>\n\n")
         sys.exit(0)
     else:
