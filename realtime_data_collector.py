@@ -1,12 +1,13 @@
 import csv
 import errno
 import json
+import math
 import os
 import re
+import sys
 from datetime import datetime
 from pprint import pprint
 from threading import Condition
-import math
 
 import pytz
 from ib_insync import *
@@ -150,9 +151,11 @@ def saveDataInCSV():
     condition.release()
 
 
-def main():
+def main(configFileName):
+
+
     global config
-    config = readConfig("config/config.json")
+    config = readConfig(configFileName)
 
     ib = IB()
     ib.connect('127.0.0.1', config["tws_port"], clientId=1)
@@ -169,4 +172,10 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) < 2    :
+        print("\n\nUsage: collect_data.py <config_file.yml>\n\n")
+        sys.exit(0)
+    else:
+        print("using config file [" + sys.argv[1] + "]")
+
+    main(sys.argv[1])
