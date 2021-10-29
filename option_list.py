@@ -6,20 +6,20 @@ import sys
 
 class TestApp():
 
-    def error( reqId, errorCode, errorString):
+    def error(self,  reqId, errorCode, errorString):
         print("Error: ", reqId, "", errorCode, "", errorString)
 
-    def contractDetails(reqId, contractDetails):
+    def contractDetails(self, reqId, contractDetails):
         print("contractDetail: ", reqId, " ", contractDetails)
 
-    def contractDetailsEnd( reqId):
+    def contractDetailsEnd(self,  reqId):
         print("end, disconnecting")
         self.disconnect()
 
-    def contractDetails( reqId: int, contractDetails: ContractDetails):
+    def contractDetails(self,  reqId: int, contractDetails: ContractDetails):
         print("contractDetail: ", reqId, " ", contractDetails)
 
-    def contractDetailsEnd( reqId: int):
+    def contractDetailsEnd(self, reqId: int):
         print("end.")
         return
 
