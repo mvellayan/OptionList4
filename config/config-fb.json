@@ -1,7 +1,6 @@
-
 {
   "tws_port" : 7497,
-  "file_flush_seconds" : 120,
+  "file_flush_seconds" : 600,
   "stock": "FB",
   "weeksOut" : 3,
   "strikeBox": 5

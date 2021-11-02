@@ -20,7 +20,7 @@ def getContractList(ib, config): # -> "[] of stock and option contracts to pull"
     contract.exchange = "SMART"
     contract.currency = "USD"
 
-    fileName = "data/option_list_" + datetime.today().strftime("%Y%m%d") + '.csv'
+    fileName = "data/"+ config["stock"] +"_option_list_" + datetime.today().strftime("%Y%m%d") + '.csv'
     df = pd.DataFrame(
         columns=['secType', 'conId', 'symbol', 'lastTradeDateOrContractMonth', 'strike', 'right', 'localSymbol'])
     if not os.path.exists(fileName):
@@ -37,7 +37,9 @@ def getContractList(ib, config): # -> "[] of stock and option contracts to pull"
 
 
     endDate = date.today() + timedelta(days=(7 * config["weeksOut"]))
-    df = df [ df['lastTradeDateOrContractMonth'] <= int(endDate.strftime("%Y%m%d"))  ]
+    # print ( df['lastTradeDateOrContractMonth'].to_string())
+    strDate:str = endDate.strftime("%Y%m%d") + ""
+    df = df [ (df['lastTradeDateOrContractMonth'].astype(str)  ) <= strDate  ]
     df = df [ df['right'] == 'C']
     data = ib.reqMktData(stk)
     while data.last != data.last:
