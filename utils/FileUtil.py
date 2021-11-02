@@ -26,7 +26,9 @@ def readConfig(fileName):
     # testing:
     x = data["tws_port"]
     x = data["file_flush_seconds"]
-    x = data["contracts"]
+    x = data["stock"]
+    x = data["weeksOut"]
+    x = data["strikeBox"]
     print("\n")
     return data
 

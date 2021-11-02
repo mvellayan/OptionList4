@@ -16,8 +16,11 @@ class TestApp():
         print("end, disconnecting")
         self.disconnect()
 
+    def contractDetails(self, reqId, contractDetails):
+        print("contractDetail2: ", reqId, " ", contractDetails)
+
     def contractDetails(self,  reqId: int, contractDetails: ContractDetails):
-        print("contractDetail: ", reqId, " ", contractDetails)
+        print("contractDetail2: ", reqId, " ", contractDetails)
 
     def contractDetailsEnd(self, reqId: int):
         print("end.")
@@ -28,8 +31,8 @@ class TestApp():
         ib.connect('127.0.0.1', config["tws_port"], clientId=101)
         ib.sleep(3)
         stock = Stock('AAPL', 'SMART', 'USD')
-        ib.reqContractDetails(stock)
-        ib.run(10)
+        ib.reqContractDetails(2,stock)
+        ib.run()
 
 
 def main(configFileName):

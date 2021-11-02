@@ -45,12 +45,6 @@ def onPendingTicker(tickers):
 def saveDataInCSV():
     condition.acquire()
     global queues
-
-    #old_queues = queues
-    #queues = {}
-    #condition.release()
-    #Move all this to new thread ??
-
     header = ['ConId', 'Symbol', 'Time',
               'Bid', 'BidSize', 'Ask', 'AskSize',
               'Last', 'LastSize',
@@ -67,7 +61,6 @@ def saveDataInCSV():
             for timeStamp in queue:
                 ticker = queue.get(timeStamp)
                 quoteTime = ticker.quoteTime.astimezone(pytz.timezone('US/Eastern')).strftime("%Y%m%d%H%M%S")
-                # print(timeStamp, "->>", quoteTime, ticker)
                 writer.writerow( [ticker.conId, ticker.symbol, quoteTime, ticker.bid,
                                   ticker.bidSize, ticker.ask, ticker.askSize, ticker.last, ticker.lastSize,
                                   ticker.volume, ticker.histVolatility, ticker.impliedVolatility])
@@ -76,19 +69,20 @@ def saveDataInCSV():
 
 
 def main(configFileName):
-
-
     global config
     config = FileUtil.readConfig(configFileName)
 
     ib = IB()
     ib.connect('127.0.0.1', config["tws_port"], clientId=1)
 
-    stock = Stock('AMD', 'SMART', 'USD')
-    for sec in config["contracts"]:
-        con = IBUtil.getContract(sec)
+    contracts = IBUtil.getContractList(ib, config)
+    print("contracts#: ", len(contracts))
+    for idx, c in enumerate(contracts):
+        print(idx, ':\t', c)
+
+    for con in contracts:
         ib.reqMktData(con, '104,106', False, False)
-        #pprint(sec)
+
 
     ib.sleep(2)
     ib.pendingTickersEvent += onPendingTicker

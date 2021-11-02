@@ -18,6 +18,10 @@ def main(configFileName):
 
     print(trade)
 
+    def orderFilled(trade, fill):
+        print("Stock buy order has filled...........................................")
+        print(trade)
+        print(fill)
 
     trade.fillEvent += orderFilled
 
@@ -30,10 +34,6 @@ def main(configFileName):
 
     ib.run()
 
-def orderFilled(trade, fill):
-    print("Stock buy order has filled...........................................")
-    print(trade)
-    print(fill)
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
