@@ -1,0 +1,7 @@
+{
+  "tws_port" : 7496,
+  "file_flush_seconds" : 120,
+  "stock": "AAPL",
+  "weeksOut" : 3,
+  "strikeBox": 5
+}

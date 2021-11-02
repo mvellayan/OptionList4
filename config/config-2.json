@@ -1,8 +1,0 @@
-{
-  "tws_port" : 4002,
-  "file_flush_seconds" : 3,
-  "contracts": [
-    { "ConId" : 513292798, "Symbol": "AAPL  211029C00147000",  "SecType"  : "OPT" },
-    { "ConId" : 107113386, "Symbol": "FB",  "SecType"  : "STK" }
-  ]
-}
