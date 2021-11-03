@@ -35,16 +35,18 @@ def readConfig(fileName):
 
 
 
-def getFileName(symbol):
+def getFileName(inputFileName, addTimestamp = True):
     now = datetime.now()  # current date and time
     year_str = now.strftime("%Y")
     month_str = now.strftime("%m")
     day_str = now.strftime("%d")
     time_str = now.strftime("%H%M%S")
     #making contract name to file name:
-    contractName = ''.join(re.findall('[a-zA-Z0-9]+', symbol))
-    fileName = "data/" + year_str + "/" + month_str + "/" + day_str + "/" + contractName + "_" \
-               + year_str + month_str + day_str + "_" + time_str +'.csv'
+    outputFileName = ''.join(re.findall('[a-zA-Z0-9]+', inputFileName))
+    fileName = "data/" + year_str + "/" + month_str + "/" + day_str + "/" + outputFileName
+    if addTimestamp:
+        fileName += "_"  + year_str + month_str + day_str + "_" + time_str
+    fileName += '.csv'
     makeDirectory(fileName)
     return fileName
 

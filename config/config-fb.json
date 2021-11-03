@@ -1,4 +1,5 @@
 {
+  "tws_host" : "127.0.0.1",
   "tws_port" : 7497,
   "file_flush_seconds" : 600,
   "stock": "FB",

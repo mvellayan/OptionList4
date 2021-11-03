@@ -5,10 +5,13 @@ import math
 import os
 import re
 import sys
+import schedule
+import time
 from datetime import datetime
 from pprint import pprint
 from threading import Condition
 from utils import FileUtil, IBUtil
+import random
 
 import pytz
 from ib_insync import *
@@ -19,6 +22,8 @@ queues = {}
 queues_start_time = datetime.now()
 config = {}
 condition = Condition()
+
+
 
 
 def onPendingTicker(tickers):
@@ -42,6 +47,7 @@ def onPendingTicker(tickers):
     condition.release()
 
 
+
 def saveDataInCSV():
     condition.acquire()
     global queues
@@ -59,35 +65,46 @@ def saveDataInCSV():
             writer = csv.writer(f)
             writer.writerow(header)
             for timeStamp in queue:
-                ticker = queue.get(timeStamp)
-                quoteTime = ticker.quoteTime.astimezone(pytz.timezone('US/Eastern')).strftime("%Y%m%d%H%M%S")
-                writer.writerow( [ticker.conId, ticker.symbol, quoteTime, ticker.bid,
-                                  ticker.bidSize, ticker.ask, ticker.askSize, ticker.last, ticker.lastSize,
-                                  ticker.volume, ticker.histVolatility, ticker.impliedVolatility])
+                tkr = queue.get(timeStamp)
+                quoteTime = tkr.quoteTime.astimezone(pytz.timezone('US/Eastern')).strftime("%Y%m%d%H%M%S")
+                writer.writerow( [tkr.conId, tkr.symbol, quoteTime, tkr.bid,
+                                  tkr.bidSize, tkr.ask, tkr.askSize, tkr.last, tkr.lastSize,
+                                  tkr.volume, tkr.histVolatility, tkr.impliedVolatility])
         queue.clear()
     condition.release()
+
+def job():
+    print("I'm working...", datetime.now().strftime("%Y%m%d%H%M%S"))
 
 
 def main(configFileName):
     global config
     config = FileUtil.readConfig(configFileName)
 
+    print("scheduling job")
+    schedule.every(3).seconds.do(job)
+
     ib = IB()
-    ib.connect('127.0.0.1', config["tws_port"], clientId=1)
+    print("Connecting to ip [", config["tws_host"], "] port[", config["tws_port"], "] clientId [", config["tws_port"], "]")
+    try:
+        ib.connect(config["tws_host"], config["tws_port"], clientId=config["tws_port"])
+    except BaseException as err:
+        print(f"Unexpected {err=}, {type(err)=}")
+        #raise
+
+    print("Connection Status: ", ib.isConnected())
 
     contracts = IBUtil.getContractList(ib, config)
-    print("contracts#: ", len(contracts))
-    for idx, c in enumerate(contracts):
-        print(idx, ':\t', c)
+
+    #for idx, c in enumerate(contracts):
+    #    print(idx, ':\t', c)
 
     for con in contracts:
         ib.reqMktData(con, '104,106', False, False)
 
-
     ib.sleep(2)
     ib.pendingTickersEvent += onPendingTicker
     ib.run()
-
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
