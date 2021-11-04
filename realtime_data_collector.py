@@ -1,4 +1,5 @@
 import csv
+import sys
 import threading
 import time
 from datetime import datetime
@@ -67,8 +68,13 @@ def writeQuotesToFile(arg):
             queues_start_time = datetime.now()
             saveDataInCSV()
 
-        if not IBUtil.tradingHours():
-            raise NameError('Market Closed.  Exiting thread...')
+        if not ib.isConnected():
+            raise NameError('Lost IB Connection  Exiting thread...')
+        else:
+            if not IBUtil.tradingHours():
+                ib.disconnect()
+                raise NameError('Market Closed.  Exiting thread...')
+
 
 
 
@@ -100,9 +106,13 @@ def main(configFileName):
     while True:
         #ib.run(timeout=6)
         ib.sleep(60)
-        if not IBUtil.tradingHours():
-            ib.disconnect()
+        if not ib.isConnected():
+            print("Lost IB connection. Exiting.")
             break
+        else:
+            if not IBUtil.tradingHours():
+                ib.disconnect()
+                break
 
 
 if __name__ == "__main__":
