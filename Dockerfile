@@ -3,6 +3,7 @@
 FROM centos/python-38-centos7:20210726-fad62e9
 
 WORKDIR /usr/src/app
+WORKDIR ./data
 
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
