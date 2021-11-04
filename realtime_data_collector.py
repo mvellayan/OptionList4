@@ -10,7 +10,7 @@ import time
 from datetime import datetime
 from pprint import pprint
 import threading
-from threading import Condition
+from threading import Condition, Event
 from utils import FileUtil, IBUtil
 import random
 
@@ -24,7 +24,7 @@ queues_start_time = datetime.now()
 config = {}
 condition = Condition()
 ib = IB()
-
+exitEvent = threading.Event()
 
 
 def onPendingTicker(tickers):
@@ -70,8 +70,9 @@ def saveDataInCSV():
     condition.release()
 
 def writeJob(arg):
-    global ib, queues_start_time
+    global ib, queues_start_time, exitEvent
     #print('   writeJob polling start...');
+    time.sleep(60)  #run for 60 seconds no matter what 
     while True:
         if (datetime.now() - queues_start_time).total_seconds() >= config["file_flush_seconds"]:
             print(datetime.now().strftime("%Y%m%d%H%M%S") , ": Writing to file.")
@@ -84,12 +85,13 @@ def writeJob(arg):
         if (now.hour >= 16 and now.minute > 4):
             print("\n\n\t\tTime to Exit.")
             ib.disconnect()
-            sys.exit(0)
+            exitEvent.set()
+            raise NameError('Market Closed.  Exiting...')
         time.sleep(60)
 
 
 def main(configFileName):
-    global config, ib
+    global config, ib, exitEvent
     config = FileUtil.readConfig(configFileName)
 
     writeThread = threading.Thread(target=writeJob, args=(1,))
@@ -114,7 +116,7 @@ def main(configFileName):
 
     ib.sleep(2)
     ib.pendingTickersEvent += onPendingTicker
-    ib.run()
+    ib.run(exitEvent)
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
