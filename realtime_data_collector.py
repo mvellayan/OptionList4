@@ -23,7 +23,7 @@ queues = {}
 queues_start_time = datetime.now()
 config = {}
 condition = Condition()
-
+ib = IB()
 
 
 
@@ -70,7 +70,8 @@ def saveDataInCSV():
     condition.release()
 
 def writeJob(arg):
-    global queues_start_time
+    global ib, queues_start_time
+    print('   writeJob polling start...');
     while True:
         if (datetime.now() - queues_start_time).total_seconds() >= config["file_flush_seconds"]:
             print(datetime.now().strftime("%Y%m%d%H%M%S") , ": Writing to file.")
@@ -79,20 +80,21 @@ def writeJob(arg):
 
         #is it time to exit??
         now = datetime.now()
-        if (now.hour >= 14 and now.minute > 41):
+        print('   writeJob exit checking...', now);
+        if (now.hour >= 16 and now.minute > 4):
             print("\n\n\t\tTime to Exit.")
+            ib.disconnect()
             sys.exit(0)
         time.sleep(60)
 
 
 def main(configFileName):
-    global config
+    global config, ib
     config = FileUtil.readConfig(configFileName)
 
     writeThread = threading.Thread(target=writeJob, args=(1,))
     writeThread.start()
 
-    ib = IB()
     print("Connecting to ip [", config["tws_host"], "] port[", config["tws_port"], "] clientId [", config["tws_port"], "]")
     try:
         ib.connect(config["tws_host"], config["tws_port"], clientId=config["tws_port"])
