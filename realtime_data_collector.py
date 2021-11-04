@@ -7,10 +7,11 @@ import re
 import sys
 import schedule
 import time
+import signal
 from datetime import datetime
 from pprint import pprint
 import threading
-from threading import Condition, Event
+from threading import Condition
 from utils import FileUtil, IBUtil
 import random
 
@@ -24,7 +25,6 @@ queues_start_time = datetime.now()
 config = {}
 condition = Condition()
 ib = IB()
-exitEvent = threading.Event()
 
 
 def onPendingTicker(tickers):
@@ -47,10 +47,8 @@ def onPendingTicker(tickers):
 def saveDataInCSV():
     condition.acquire()
     global queues
-    header = ['ConId', 'Symbol', 'Time',
-              'Bid', 'BidSize', 'Ask', 'AskSize',
-              'Last', 'LastSize',
-              'Volume', 'histVolatility', 'impliedVolatility']
+    header = ['ConId', 'Symbol', 'Time', 'Bid', 'BidSize', 'Ask', 'AskSize',
+              'Last', 'LastSize', 'Volume', 'histVolatility', 'impliedVolatility']
     for symbol in queues:
         queue = queues.get(symbol)
         #print(symbol, "->")
@@ -70,7 +68,7 @@ def saveDataInCSV():
     condition.release()
 
 def writeJob(arg):
-    global ib, queues_start_time, exitEvent
+    global ib, queues_start_time
     #print('   writeJob polling start...');
     time.sleep(60)  #run for 60 seconds no matter what 
     while True:
@@ -85,13 +83,12 @@ def writeJob(arg):
         if (now.hour >= 16 and now.minute > 4):
             print("\n\n\t\tTime to Exit.")
             ib.disconnect()
-            exitEvent.set()
             raise NameError('Market Closed.  Exiting...')
         time.sleep(60)
 
 
 def main(configFileName):
-    global config, ib, exitEvent
+    global config, ib
     config = FileUtil.readConfig(configFileName)
 
     writeThread = threading.Thread(target=writeJob, args=(1,))
@@ -116,7 +113,15 @@ def main(configFileName):
 
     ib.sleep(2)
     ib.pendingTickersEvent += onPendingTicker
-    ib.run(exitEvent)
+
+    while True:
+       #ib.run(timeout=6)
+       ib.sleep(60)
+       now = datetime.now()
+       if ((now.hour >= 16 and now.minute > 4) or (now.hour < 9 and now.munute < 25)):
+          print("\n\n\t\t Exiting during non-trading hours.", now)
+          ib.disconnect()
+          break
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
