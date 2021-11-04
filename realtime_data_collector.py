@@ -28,13 +28,8 @@ condition = Condition()
 
 
 def onPendingTicker(tickers):
-    global queues, queues_start_time
+    global queues
     condition.acquire()
-
-    if  (datetime.now() - queues_start_time).total_seconds() >= config["file_flush_seconds"]:
-        print("Writing to file.")
-        queues_start_time = datetime.now()
-        saveDataInCSV()
 
     for t in tickers:
         indexStr = t.time.strftime("%Y%m%d%H%M%S")
@@ -74,13 +69,19 @@ def saveDataInCSV():
         queue.clear()
     condition.release()
 
-def writeJob():
-    while true:
-        now = datetime.datetime.now()
-        if (now.hour >= 14 and now.minute > 27):
+def writeJob(arg):
+    global queues_start_time
+    while True:
+        if (datetime.now() - queues_start_time).total_seconds() >= config["file_flush_seconds"]:
+            print(datetime.now().strftime("%Y%m%d%H%M%S") , ": Writing to file.")
+            queues_start_time = datetime.now()
+            saveDataInCSV()
+
+        #is it time to exit??
+        now = datetime.now()
+        if (now.hour >= 14 and now.minute > 41):
+            print("\n\n\t\tTime to Exit.")
             sys.exit(0)
-        else:
-            print("\t\t\t\tnot after time: ", now)
         time.sleep(60)
 
 
