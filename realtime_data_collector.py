@@ -9,6 +9,7 @@ import schedule
 import time
 from datetime import datetime
 from pprint import pprint
+import threading
 from threading import Condition
 from utils import FileUtil, IBUtil
 import random
@@ -73,16 +74,22 @@ def saveDataInCSV():
         queue.clear()
     condition.release()
 
-def job():
-    print("I'm working...", datetime.now().strftime("%Y%m%d%H%M%S"))
+def writeJob():
+    while true:
+        now = datetime.datetime.now()
+        if (now.hour >= 14 and now.minute > 27):
+            sys.exit(0)
+        else:
+            print("\t\t\t\tnot after time: ", now)
+        time.sleep(60)
 
 
 def main(configFileName):
     global config
     config = FileUtil.readConfig(configFileName)
 
-    print("scheduling job")
-    schedule.every(3).seconds.do(job)
+    writeThread = threading.Thread(target=writeJob, args=(1,))
+    writeThread.start()
 
     ib = IB()
     print("Connecting to ip [", config["tws_host"], "] port[", config["tws_port"], "] clientId [", config["tws_port"], "]")
