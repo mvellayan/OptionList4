@@ -1,22 +1,13 @@
 import csv
-import errno
-import json
-import math
-import os
-import re
-import sys
-import schedule
-import time
-import signal
-from datetime import datetime
-from pprint import pprint
 import threading
+import time
+from datetime import datetime
 from threading import Condition
-from utils import FileUtil, IBUtil
-import random
 
 import pytz
 from ib_insync import *
+
+from utils import FileUtil, IBUtil
 
 #
 # see: https://github.com/erdewit/ib_insync
@@ -43,7 +34,6 @@ def onPendingTicker(tickers):
     condition.release()
 
 
-
 def saveDataInCSV():
     condition.acquire()
     global queues
@@ -67,31 +57,26 @@ def saveDataInCSV():
         queue.clear()
     condition.release()
 
-def writeJob(arg):
-    global ib, queues_start_time
-    #print('   writeJob polling start...');
-    time.sleep(60)  #run for 60 seconds no matter what 
+
+def writeQuotesToFile(arg):
+    global queues_start_time
     while True:
+        time.sleep(60)
         if (datetime.now() - queues_start_time).total_seconds() >= config["file_flush_seconds"]:
             print(datetime.now().strftime("%Y%m%d%H%M%S") , ": Writing to file.")
             queues_start_time = datetime.now()
             saveDataInCSV()
 
-        #is it time to exit??
-        now = datetime.now()
-        #print('   writeJob exit checking...', now);
-        if (now.hour >= 16 and now.minute > 4):
-            print("\n\n\t\tTime to Exit.")
-            ib.disconnect()
-            raise NameError('Market Closed.  Exiting...')
-        time.sleep(60)
+        if not IBUtil.tradingHours():
+            raise NameError('Market Closed.  Exiting thread...')
+
 
 
 def main(configFileName):
-    global config, ib
+    global config
     config = FileUtil.readConfig(configFileName)
 
-    writeThread = threading.Thread(target=writeJob, args=(1,))
+    writeThread = threading.Thread(target=writeQuotesToFile, args=(1,))
     writeThread.start()
 
     print("Connecting to ip [", config["tws_host"], "] port[", config["tws_port"], "] clientId [", config["tws_port"], "]")
@@ -99,29 +84,26 @@ def main(configFileName):
         ib.connect(config["tws_host"], config["tws_port"], clientId=config["tws_port"])
     except BaseException as err:
         print(f"Unexpected {err=}, {type(err)=}")
-        #raise
+        raise NameError("Cannot connect to IB")
 
     print("Connection Status: ", ib.isConnected())
 
     contracts = IBUtil.getContractList(ib, config)
 
-    #for idx, c in enumerate(contracts):
-    #    print(idx, ':\t', c)
-
     for con in contracts:
         ib.reqMktData(con, '104,106', False, False)
 
     ib.sleep(2)
+
     ib.pendingTickersEvent += onPendingTicker
 
     while True:
-       #ib.run(timeout=6)
-       ib.sleep(60)
-       now = datetime.now()
-       if ((now.hour >= 16 and now.minute > 4) or (now.hour < 9 and now.munute < 25)):
-          print("\n\n\t\t Exiting during non-trading hours.", now)
-          ib.disconnect()
-          break
+        #ib.run(timeout=6)
+        ib.sleep(60)
+        if not IBUtil.tradingHours():
+            ib.disconnect()
+            break
+
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:

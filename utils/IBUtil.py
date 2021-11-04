@@ -72,6 +72,15 @@ def getContractList(ib, config): # -> "[] of stock and option contracts to pull"
     print('\n Summary: Above Strike (', df_pos.shape, '), Below Strike (', df_neg.shape, ') \n')
     return retArray
 
+
+def tradingHours():
+    now = datetime.now()
+    if ((now.hour >= 16 and now.minute > 4) or (now.hour < 9 and now.munute < 25)):
+        print("\n\n\t\t Non-trading hours. Can't get realtime data. ", now)
+        return False
+    return True
+
+
 class MarketData:
     def __init__(self, ticker):
         self.conId = ticker.contract.conId
@@ -93,4 +102,5 @@ class MarketData:
             self.impliedVolatility = ""
         else:
             self.impliedVolatility = ticker.impliedVolatility
+
 
