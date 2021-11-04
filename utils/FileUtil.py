@@ -43,7 +43,7 @@ def getFileName(inputFileName, addTimestamp = True):
     time_str = now.strftime("%H%M%S")
     #making contract name to file name:
     outputFileName = ''.join(re.findall('[a-zA-Z0-9]+', inputFileName))
-    fileName = "./data/" + year_str + "/" + month_str + "/" + day_str + "/" + outputFileName
+    fileName = "./IBdata/" + year_str + "/" + month_str + "/" + day_str + "/" + outputFileName
     if addTimestamp:
         fileName += "_"  + year_str + month_str + day_str + "_" + time_str
     fileName += '.csv'
