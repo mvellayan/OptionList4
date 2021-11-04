@@ -71,7 +71,7 @@ def saveDataInCSV():
 
 def writeJob(arg):
     global ib, queues_start_time
-    print('   writeJob polling start...');
+    #print('   writeJob polling start...');
     while True:
         if (datetime.now() - queues_start_time).total_seconds() >= config["file_flush_seconds"]:
             print(datetime.now().strftime("%Y%m%d%H%M%S") , ": Writing to file.")
@@ -80,7 +80,7 @@ def writeJob(arg):
 
         #is it time to exit??
         now = datetime.now()
-        print('   writeJob exit checking...', now);
+        #print('   writeJob exit checking...', now);
         if (now.hour >= 16 and now.minute > 4):
             print("\n\n\t\tTime to Exit.")
             ib.disconnect()
