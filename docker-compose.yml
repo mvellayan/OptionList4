@@ -1,0 +1,16 @@
+version: "3.9"
+services:
+  fb:
+    build: .
+    image: ol4:latest
+    command: python3 realtime_data_collector.py config/config-fb.json
+    volumes:
+      - ./IBdata:/IBapp/IBdata
+    network_mode: "host"
+  aapl:
+    build: .
+    image: ol4:latest
+    command: python3 realtime_data_collector.py config/config-aapl.json
+    volumes:
+      - ./IBdata:/IBapp/IBdata
+    network_mode: "host"
