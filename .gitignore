@@ -9,6 +9,7 @@ clientportal.gw/
 #ipython
 share/man/man1/ipython.1.gz
 #dont commit the data
+IBdata/
 data/
 
 __pycache__/
