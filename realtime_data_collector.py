@@ -1,5 +1,5 @@
 import csv
-import sys
+import sys, os, signal
 import threading
 import time
 from datetime import datetime
@@ -70,9 +70,11 @@ def writeQuotesToFile(arg):
 
         if not ib.isConnected():
             raise NameError('Lost IB Connection  Exiting thread...')
+            os.kill(os.getpid(), signal.SIGINT)
         else:
             if not IBUtil.tradingHours():
                 ib.disconnect()
+                os.kill(os.getpid(), signal.SIGINT)
                 raise NameError('Market Closed.  Exiting thread...')
 
 
@@ -108,10 +110,12 @@ def main(configFileName):
         ib.sleep(60)
         if not ib.isConnected():
             print("Lost IB connection. Exiting.")
+            os.kill(os.getpid(), signal.SIGINT)
             break
         else:
             if not IBUtil.tradingHours():
                 ib.disconnect()
+                os.kill(os.getpid(), signal.SIGINT)
                 break
 
 
