@@ -1,5 +1,6 @@
 import math
 import os
+import pytz
 from datetime import datetime, timedelta, date
 
 import pandas as pd
@@ -75,10 +76,12 @@ def getContractList(ib, config): # -> "[] of stock and option contracts to pull"
 
 def tradingHours():
     now = datetime.now()
-    if (now.hour >= 16 and now.minute > 4) or (now.hour < 9 and now.minute < 25):
-        print("\n\n\t\t Non-trading hours. Can't get realtime data. ", now)
+    hour = int(now.astimezone(pytz.timezone('US/Eastern')).strftime("%H"))
+    if hour in range(9,17): # checking hours for now
+        return True
+    else:
+        print("\n\n\t\t Non-trading hour.[", hour, "] Can't get realtime data. ", now)
         return False
-    return True
 
 
 class MarketData:
