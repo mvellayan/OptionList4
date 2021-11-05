@@ -5,5 +5,6 @@ if [ "$(docker ps -f ancestor=ol4 | wc -l)" -eq 3 ]; then
    #docker ps -f ancestor=ol4
 else
    echo "Restarting..."
+   docker-compose down
    docker-compose up
 fi
