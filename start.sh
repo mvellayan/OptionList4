@@ -1,3 +1,4 @@
+echo "Execution Time: `date`"
 cd ~/Development/OptionList4
 docker ps -f ancestor=ol4
 if [ "$(docker ps -f ancestor=ol4 | wc -l)" -eq 3 ]; then
@@ -6,5 +7,5 @@ if [ "$(docker ps -f ancestor=ol4 | wc -l)" -eq 3 ]; then
 else
    echo "Restarting..."
    docker-compose down
-   docker-compose up
+   docker-compose up --detach
 fi
