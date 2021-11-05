@@ -75,7 +75,7 @@ def getContractList(ib, config): # -> "[] of stock and option contracts to pull"
 
 def tradingHours():
     now = datetime.now()
-    if ((now.hour >= 16 and now.minute > 4) or (now.hour < 9 and now.munute < 25)):
+    if (now.hour >= 16 and now.minute > 4) or (now.hour < 9 and now.minute < 25):
         print("\n\n\t\t Non-trading hours. Can't get realtime data. ", now)
         return False
     return True
