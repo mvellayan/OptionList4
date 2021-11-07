@@ -1,8 +1,9 @@
 {
-  "tws_host" : "127.0.0.1",
+  "tws_host" : "192.168.1.211",
   "tws_port" : 7497,
   "file_flush_seconds" : 600,
   "stock": "FB",
+  "stockContractId" : 107113386,
   "weeksOut" : 3,
   "strikeBox": 5
 }
