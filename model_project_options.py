@@ -1,5 +1,4 @@
-import datetime
-from datetime import timedelta, date
+from datetime import datetime, timedelta, date
 import glob, sys
 import pandas as pd
 from pprint import pprint
@@ -12,14 +11,18 @@ optionQuotes: pd.DataFrame = None   # Data Frame all date/time quotes for all op
 symbol: str = ""                 # symbol we are working with.  Param from config
 config = {}                      # parameter config object
 expiryList = []                 # list of expiry we are interested in for the given date
-
+running_missing = 0
+running_total = 0
 
 def main():
     global symbol, config, stockQuotes, optionList, optionQuotes
+    global running_missing, running_total
 
     config = FileUtil.readConfig("config/config-aapl.json")
     loadBasicData("/Users/Muthu/Development/OptionList4/IBdata/2021/11/05")
     stockQuotes.set_index('Time')
+    running_missing = 0
+    running_total = 0
 
     print(datetime.now().strftime("%Y%m%d %H:%M:%S"), ": Starting projection building")
     df = stockQuotes.apply(lambda x: expandX(x['Time'], x['Last']), axis=1, result_type='expand')
@@ -34,58 +37,37 @@ def main():
     print(datetime.now().strftime("%Y%m%d %H:%M:%S"), ": Done!")
 
 
-'''
-    df[[
-        'c_w1_n1_Ask', 'c_w1_n1_AskSize', 'c_w1_n1_Bid', 'c_w1_n1_BidSize', 'c_w1_n1_Last', 'c_w1_n1_LastSize',
-        'c_w1_n1_impliedVolatility', 'c_w1_n1_strike', 'c_w1_n1_strikeDelta', 'c_w1_n2_Ask', 'c_w1_n2_AskSize',
-        'c_w1_n2_Bid', 'c_w1_n2_BidSize', 'c_w1_n2_Last', 'c_w1_n2_LastSize', 'c_w1_n2_impliedVolatility',
-        'c_w1_n2_strike', 'c_w1_n2_strikeDelta', 'c_w1_n3_Ask', 'c_w1_n3_AskSize', 'c_w1_n3_Bid', 'c_w1_n3_BidSize',
-        'c_w1_n3_Last', 'c_w1_n3_LastSize', 'c_w1_n3_impliedVolatility', 'c_w1_n3_strike', 'c_w1_n3_strikeDelta',
-        'c_w1_p1_Ask', 'c_w1_p1_AskSize', 'c_w1_p1_Bid', 'c_w1_p1_BidSize', 'c_w1_p1_Last', 'c_w1_p1_LastSize',
-        'c_w1_p1_impliedVolatility', 'c_w1_p1_strike', 'c_w1_p1_strikeDelta', 'c_w1_p2_Ask', 'c_w1_p2_AskSize',
-        'c_w1_p2_Bid', 'c_w1_p2_BidSize', 'c_w1_p2_Last', 'c_w1_p2_LastSize', 'c_w1_p2_impliedVolatility', 'c_w1_p2_strike',
-        'c_w1_p2_strikeDelta', 'c_w1_p3_Ask', 'c_w1_p3_AskSize', 'c_w1_p3_Bid', 'c_w1_p3_BidSize', 'c_w1_p3_Last',
-        'c_w1_p3_LastSize', 'c_w1_p3_impliedVolatility', 'c_w1_p3_strike', 'c_w1_p3_strikeDelta', 'c_w2_n1_Ask',
-        'c_w2_n1_AskSize', 'c_w2_n1_Bid', 'c_w2_n1_BidSize', 'c_w2_n1_Last', 'c_w2_n1_LastSize',
-        'c_w2_n1_impliedVolatility', 'c_w2_n1_strike', 'c_w2_n1_strikeDelta', 'c_w2_n2_Ask', 'c_w2_n2_AskSize',
-        'c_w2_n2_Bid', 'c_w2_n2_BidSize', 'c_w2_n2_Last', 'c_w2_n2_LastSize', 'c_w2_n2_impliedVolatility', 'c_w2_n2_strike',
-        'c_w2_n2_strikeDelta', 'c_w2_n3_Ask', 'c_w2_n3_AskSize', 'c_w2_n3_Bid', 'c_w2_n3_BidSize', 'c_w2_n3_Last',
-        'c_w2_n3_LastSize', 'c_w2_n3_impliedVolatility', 'c_w2_n3_strike', 'c_w2_n3_strikeDelta', 'c_w2_p1_Ask',
-        'c_w2_p1_AskSize', 'c_w2_p1_Bid', 'c_w2_p1_BidSize', 'c_w2_p1_Last', 'c_w2_p1_LastSize',
-        'c_w2_p1_impliedVolatility', 'c_w2_p1_strike', 'c_w2_p1_strikeDelta', 'c_w2_p2_Ask', 'c_w2_p2_AskSize',
-        'c_w2_p2_Bid', 'c_w2_p2_BidSize', 'c_w2_p2_Last', 'c_w2_p2_LastSize', 'c_w2_p2_impliedVolatility', 'c_w2_p2_strike',
-        'c_w2_p2_strikeDelta', 'c_w2_p3_Ask', 'c_w2_p3_AskSize', 'c_w2_p3_Bid', 'c_w2_p3_BidSize', 'c_w2_p3_Last',
-        'c_w2_p3_LastSize', 'c_w2_p3_impliedVolatility', 'c_w2_p3_strike', 'c_w2_p3_strikeDelta', 'c_w3_n1_Ask',
-        'c_w3_n1_AskSize', 'c_w3_n1_Bid', 'c_w3_n1_BidSize', 'c_w3_n1_Last', 'c_w3_n1_LastSize',
-        'c_w3_n1_impliedVolatility', 'c_w3_n1_strike', 'c_w3_n1_strikeDelta', 'c_w3_n2_Ask', 'c_w3_n2_AskSize',
-        'c_w3_n2_Bid', 'c_w3_n2_BidSize', 'c_w3_n2_Last', 'c_w3_n2_LastSize', 'c_w3_n2_impliedVolatility', 'c_w3_n2_strike',
-        'c_w3_n2_strikeDelta', 'c_w3_n3_Ask', 'c_w3_n3_AskSize', 'c_w3_n3_Bid', 'c_w3_n3_BidSize', 'c_w3_n3_Last',
-        'c_w3_n3_LastSize', 'c_w3_n3_impliedVolatility', 'c_w3_n3_strike', 'c_w3_n3_strikeDelta', 'c_w3_p1_Ask',
-        'c_w3_p1_AskSize', 'c_w3_p1_Bid', 'c_w3_p1_BidSize', 'c_w3_p1_Last', 'c_w3_p1_LastSize',
-        'c_w3_p1_impliedVolatility', 'c_w3_p1_strike', 'c_w3_p1_strikeDelta', 'c_w3_p2_Ask', 'c_w3_p2_AskSize',
-        'c_w3_p2_Bid', 'c_w3_p2_BidSize', 'c_w3_p2_Last', 'c_w3_p2_LastSize', 'c_w3_p2_impliedVolatility', 'c_w3_p2_strike',
-        'c_w3_p2_strikeDelta', 'c_w3_p3_Ask', 'c_w3_p3_AskSize', 'c_w3_p3_Bid', 'c_w3_p3_BidSize', 'c_w3_p3_Last',
-        'c_w3_p3_LastSize', 'c_w3_p3_impliedVolatility', 'c_w3_p3_strike', 'c_w3_p3_strikeDelta']] = \
-        df.apply(lambda x: expandX(x['Time'], x['Last']), axis=1)
-    print(df)
-'''
 
 def expandX(quoteTime, quoteLast):
     global symbol, config, stockQuotes, optionList, optionQuotes
-
+    global running_total, running_missing, expiryList
     list = IBUtil.filterOptionList(expiryList, quoteLast, optionList, strikeBox=3)
     # pprint (list)
     listLabel = ["c_w1_n3", "c_w1_n2", "c_w1_n1", "c_w1_p1", "c_w1_p2", "c_w1_p3",
                  "c_w2_n3", "c_w2_n2", "c_w2_n1", "c_w2_p1", "c_w2_p2", "c_w2_p3",
                  "c_w3_n3", "c_w3_n2", "c_w3_n1", "c_w3_p1", "c_w3_p2", "c_w3_p3"]
     retDict = {}
-
     index = 0
     retDict["Time"] = quoteTime
+
+    retDict["p0"] = IBUtil.getLast(stockQuotes, quoteTime, 0)
+    retDict["p15s"] = IBUtil.getLast(stockQuotes, quoteTime, 15)
+    retDict["p30s"] = IBUtil.getLast(stockQuotes, quoteTime, 30)
+    retDict["p60s"] = IBUtil.getLast(stockQuotes, quoteTime, 60)
+    retDict["p300s"] = IBUtil.getLast(stockQuotes, quoteTime, 300)
+    retDict["p600s"] = IBUtil.getLast(stockQuotes, quoteTime, 600)
+    retDict["p900s"] = IBUtil.getLast(stockQuotes, quoteTime, 900)
+
     for contract in list:
         # print(contract)
+
         qStr = 'ConId == ' + str(contract.conId) + ' and Time == ' + str(quoteTime)
         res = optionQuotes.query(qStr)
+        # No Performance diff using eval instead of query.  query is cleaner language
+        # qStr = 'optionQuotes.ConId == ' + str(contract.conId) + '& optionQuotes.Time == ' + str(quoteTime)
+        # res = pd.eval(' optionQuotes[ ' + qStr + ' ]')
+
+        running_total += 1
         if res.shape[0] > 0:
             dct = res.head(1).to_dict(orient="records")[0];
             # print(dct)
@@ -98,13 +80,16 @@ def expandX(quoteTime, quoteLast):
             retDict[listLabel[index] + "_" + "strike"] = contract.strike
             retDict[listLabel[index] + "_" + "strikeDelta"] = quoteLast - contract.strike
             retDict[listLabel[index] + "_" + "impliedVolatility"] = dct["impliedVolatility"]
+        else:
+            running_missing += 1
+            print("\t", "missing=[", running_missing, "] total=[", running_total, ']:', qStr, "Missing")
         index += 1
     # print("----------------")
     return retDict
 
 def loadBasicData(startingDir):
     global symbol, config, stockQuotes, optionList, optionQuotes
-
+    global expiryList
     # 1. get stock symbol
     symbol = config["stock"]  # symbol we are working with.  Param from config
 
@@ -125,16 +110,8 @@ def loadBasicData(startingDir):
     quoteTime: int = stockQuotes[['Time']].values[0][0]
     quoteTimeStr = str(quoteTime)
     # parse this: 20211105105959
-    quoteTimeDate = datetime.datetime(int(quoteTimeStr[0:4]), int(quoteTimeStr[4:6]), int(quoteTimeStr[6:8]),
-                                         int(quoteTimeStr[8:10]), int(quoteTimeStr[10:12]), int(quoteTimeStr[12:14]))
-    wDate = quoteTimeDate
-    for i in range(3):
-        wDate = wDate + datetime.timedelta((4 - wDate.weekday()) % 7)
-        expiryList.append(int(wDate.strftime("%Y%m%d")))
-        wDate = wDate + timedelta(days=1)
-
-   # print('time [', quoteTime, quoteTimeStr, quoteTimeDate, "]", expiryList)
-
+    quoteTimeDate = FileUtil.getDateObj(quoteTimeStr)
+    expiryList = IBUtil.getExpiryList(quoteTimeDate, 3)
 
     # 3. Read All StockQuotes Files to single Panda
     for file in glob.glob(startingDir + "/" + symbol + "2" + "*csv"):
