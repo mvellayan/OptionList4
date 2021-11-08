@@ -42,8 +42,7 @@ def getContractList(ib, config): # -> "[] of stock and option contracts to pull"
     optionList = pd.read_csv(fileName)
     #expiryList, quoteLast, optionList, strikeBox=3)
     expiryList = getExpiryList(datetime.now(), config["weeksOut"])
-    retArray.append(filterOptionList(expiryList, data.last,optionList,
-                                     config["strikeBox"]))
+    retArray += filterOptionList(expiryList, data.last,optionList, config["strikeBox"])
     return retArray
 
 def filterOptionList(expiryList,  quoteAmt: float,  df, strikeBox: int):
