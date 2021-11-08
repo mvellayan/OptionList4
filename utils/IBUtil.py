@@ -9,7 +9,7 @@ from .FileUtil import *
 
 def getContractList(ib, config): # -> "[] of stock and option contracts to pull"
 
-    retArray = []
+    retArray = []  #array of contracts
 
     stk = Contract( symbol= config["stock"], secType = "STK", exchange = "SMART", currency = "USD")
     retArray.append(stk)
@@ -21,7 +21,8 @@ def getContractList(ib, config): # -> "[] of stock and option contracts to pull"
     contract.exchange = "SMART"
     contract.currency = "USD"
 
-    fileName = getFileName(config["stock"] +"_optionList_" + datetime.today().strftime("%Y%m%d"), addTimestamp=False)
+    dateStr = datetime.now().astimezone(pytz.timezone('US/Eastern')).strftime("%Y%m%d")
+    fileName = getFileName(config["stock"] + "_optionList_" + dateStr, addTimestamp=False)
 
     if not os.path.exists(fileName):
         x = ib.reqContractDetails(contract)
@@ -33,44 +34,62 @@ def getContractList(ib, config): # -> "[] of stock and option contracts to pull"
                                c.strike, c.right, c.localSymbol ]
         df.to_csv(fileName)
     else:
-        print("Reading from cache file [" + fileName + "]")
-        df = pd.read_csv(fileName)
+        print("File already exists [" + fileName + "]")
 
-    endDate = date.today() + timedelta(days=(7 * config["weeksOut"]))
-    # print ( df['lastTradeDateOrContractMonth'].to_string())
-    strDate:str = endDate.strftime("%Y%m%d") + ""
-    df = df [ (df['lastTradeDateOrContractMonth'].astype(str)  ) <= strDate  ]
-    df = df [ df['right'] == 'C']
     data = ib.reqMktData(stk)
     while data.last != data.last:
         ib.sleep(0.01)  # Wait until data is in.
     ib.cancelMktData(data)
 
-    print(df.describe())
-    print("Last quote for [" + config["stock"]+ "] was : ", data.last)
+    optionList = pd.read_csv(fileName)
+    #expiryList, quoteLast, optionList, strikeBox=3)
+    expiryList = getExpiryList(datetime.now(), config["weeksOut"])
+    return retArray.append(filterOptionList(expiryList, data.last,
+                                            optionList, config["strikeBox"]))
 
-    df['strikeDelta'] = df.strike - data.last
+
+def filterOptionList(expiryList,  quoteAmt: float,  df, strikeBox: int):
+
+    retArray = []
+    df_exp = []
+
+    #Filter by type.  Calls only
+    df = df[df['right'] == 'C']
+    df['strikeDelta'] = df.strike - quoteAmt
     df['absStrikeDelta'] = abs(df['strikeDelta'])
-    df_pos = df[df['strikeDelta'] >= 0 ]
-    df_neg = df[df['strikeDelta'] < 0]
 
-    df_pos['rank'] = df_pos['absStrikeDelta'].rank(na_option='bottom')
-    df_neg['rank'] = df_neg['absStrikeDelta'].rank(na_option='bottom')
+    df_pos = None
+    df_neg = None
+    df_res = None
+    #filter by expiration date
+    for i, exp in enumerate(expiryList):
+        # df_exp[i] = df[df['lastTradeDateOrContractMonth'] == exp]
+        df_week = df[df['lastTradeDateOrContractMonth'] == exp]
 
-    print ('\n\n--------------------- Above Strike (', data.last, ')---------------')
-    df_pos = df_pos.sort_values(by = 'rank').head(  config['weeksOut']* config['strikeBox'])
-    for ind in df_pos.index:
-        print(df_pos["conId"][ind], df_pos["localSymbol"][ind], df_pos["localSymbol"][ind])
-        retArray.append(Contract(conId=df_pos["conId"][ind],  secType="OPT", exchange="SMART",
-                                 currency="USD", right=df_pos["right"][ind], symbol=df_pos["localSymbol"][ind]))
+        df_pos = df_week[df_week['strikeDelta'] >= 0]
+        df_w = df_pos.sort_values(['strikeDelta'], ascending=True).head(strikeBox)
+        if df_res is None:
+            df_res = df_w
+        else:
+            df_res = df_res.append(df_w)
 
-    print('\n\n--------------------- Below Strike (', data.last, ')---------------')
-    df_neg = df_neg.sort_values(by='rank').head(config['weeksOut'] * config['strikeBox'])
-    for ind in df_neg.index:
-        print(df_neg["conId"][ind], df_neg["localSymbol"][ind], df_neg["localSymbol"][ind])
-        retArray.append(Contract(conId=df_neg["conId"][ind],  secType="OPT", exchange="SMART",
-                                 currency="USD", right=df_neg["right"][ind], symbol=df_neg["localSymbol"][ind]))
-    print('\n Summary: Above Strike (', df_pos.shape, '), Below Strike (', df_neg.shape, ') \n')
+        df_neg = df_week[df_week['strikeDelta'] < 0]
+        df_w = df_neg.sort_values(['strikeDelta'], ascending=False).head(strikeBox)
+        df_res = df_res.append(df_w)
+
+    # print(df_res.describe())
+
+    # print('\n\n--------------------- Strike (', quoteAmt, ')---------------')
+    df_res = df_res.sort_values(by=['lastTradeDateOrContractMonth', 'strike'], ascending=True)
+    for ind in df_res.index:
+        # print(df_res["conId"][ind], df_res["strike"][ind],
+        #      df_res["lastTradeDateOrContractMonth"][ind], df_res["localSymbol"][ind])
+        retArray.append(Contract(conId=df_res["conId"][ind],  secType="OPT", exchange="SMART",
+                                 currency="USD", right=df_res["right"][ind], symbol=df_res["localSymbol"][ind],
+                                 strike=df_res["strike"][ind], lastTradeDateOrContractMonth =
+                                 df_res["lastTradeDateOrContractMonth"][ind]))
+    # print('\n Summary: Above Strike (', df_res.shape, ') \n')
+
     return retArray
 
 
@@ -107,3 +126,11 @@ class MarketData:
             self.impliedVolatility = ticker.impliedVolatility
 
 
+def getExpiryList(quoteTimeDate: datetime, noWeeks: int):
+    expiryListArr = []
+    wDate = quoteTimeDate
+    for i in range(noWeeks):
+        wDate = wDate + timedelta((4 - wDate.weekday()) % 7)
+        expiryList.append(int(wDate.strftime("%Y%m%d")))
+        wDate = wDate + timedelta(days=1)
+    return expiryListArr
