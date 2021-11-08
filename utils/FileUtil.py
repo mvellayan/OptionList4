@@ -4,7 +4,7 @@ import json
 import os
 import re
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from pprint import pprint
 
 from ib_insync import *
@@ -33,8 +33,6 @@ def readConfig(fileName):
     return data
 
 
-
-
 def getFileName(inputFileName, addTimestamp = True):
     now = datetime.now()  # current date and time
     year_str = now.strftime("%Y")
@@ -60,3 +58,35 @@ def makeDirectory(fileName):
                 print ("ERROR")
                 print ( exc )
                 #raise
+
+def getLast(stockQuotes, quoteTime, delta: int):
+    last = None
+    for iter in range(3):
+        df = stockQuotes.query("Time == " + dateAdd(quoteTime, seconds=(delta+iter)))
+        if df.shape[0] > 0:
+            last = df["Last"].iloc[0]
+            break
+    return last
+
+
+def dateAdd(inDate: str, minutes: int = 0, seconds: int = 0):
+    dateObj :datetime = getDateObj(inDate)
+    dateObj = dateObj + timedelta(minutes=minutes, seconds=seconds)
+    return dateObj.strftime("%Y%m%d%H%M%S")
+
+
+def getDateObj(inTime):  #input can be string or int
+
+    if type(inTime) == int:
+        inTime = str(inTime)
+    elif type(inTime) == str:
+        pass
+    else:
+        print("Unexpected parameter type: ", type(inTime))
+        sys.exit(0)
+
+    return datetime(int(inTime[0:4]), int(inTime[4:6]),
+                    int(inTime[6:8]), int(inTime[8:10]),
+                    int(inTime[10:12]), int(inTime[12:14]))
+
+
