@@ -11,15 +11,13 @@ def getContractList(ib, config): # -> "[] of stock and option contracts to pull"
 
     retArray = []  #array of contracts
 
-    stk = Contract( symbol= config["stock"], secType = "STK", exchange = "SMART", currency = "USD")
+    stk = Contract(symbol=config["stock"], secType="STK", exchange="SMART",
+                   conId=config["stockContractId"], currency="USD")
     retArray.append(stk)
     #contract.conId = sec["ConId"]
 
-    contract = Contract()
-    contract.symbol = config["stock"]
-    contract.secType = "OPT"
-    contract.exchange = "SMART"
-    contract.currency = "USD"
+    contract = Contract(symbol=config["stock"], secType="OPT", exchange="SMART",
+                        currency="USD")
 
     dateStr = datetime.now().astimezone(pytz.timezone('US/Eastern')).strftime("%Y%m%d")
     fileName = getFileName(config["stock"] + "_optionList_" + dateStr, addTimestamp=False)
@@ -44,9 +42,10 @@ def getContractList(ib, config): # -> "[] of stock and option contracts to pull"
     optionList = pd.read_csv(fileName)
     #expiryList, quoteLast, optionList, strikeBox=3)
     expiryList = getExpiryList(datetime.now(), config["weeksOut"])
-    return retArray.append(filterOptionList(expiryList, data.last,
-                                            optionList, config["strikeBox"]))
-
+    retArray.append(filterOptionList(expiryList, data.last,optionList,
+                                     config["strikeBox"]))
+    pprint(retArray)
+    return retArray
 
 def filterOptionList(expiryList,  quoteAmt: float,  df, strikeBox: int):
 
@@ -131,6 +130,6 @@ def getExpiryList(quoteTimeDate: datetime, noWeeks: int):
     wDate = quoteTimeDate
     for i in range(noWeeks):
         wDate = wDate + timedelta((4 - wDate.weekday()) % 7)
-        expiryList.append(int(wDate.strftime("%Y%m%d")))
+        expiryListArr.append(int(wDate.strftime("%Y%m%d")))
         wDate = wDate + timedelta(days=1)
     return expiryListArr
