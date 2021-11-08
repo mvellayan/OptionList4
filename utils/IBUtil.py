@@ -44,7 +44,6 @@ def getContractList(ib, config): # -> "[] of stock and option contracts to pull"
     expiryList = getExpiryList(datetime.now(), config["weeksOut"])
     retArray.append(filterOptionList(expiryList, data.last,optionList,
                                      config["strikeBox"]))
-    pprint(retArray)
     return retArray
 
 def filterOptionList(expiryList,  quoteAmt: float,  df, strikeBox: int):

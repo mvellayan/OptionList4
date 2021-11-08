@@ -1,5 +1,6 @@
 import csv
 import sys, os, signal
+from pprint import pprint
 import threading
 import time
 from datetime import datetime
@@ -97,10 +98,9 @@ def main(configFileName):
     print("Connection Status: ", ib.isConnected())
 
     contracts = IBUtil.getContractList(ib, config)
-
+    pprint(contracts)
     for con in contracts:
         ib.reqMktData(con, '104,106', False, False)
-
     ib.sleep(2)
 
     ib.pendingTickersEvent += onPendingTicker
