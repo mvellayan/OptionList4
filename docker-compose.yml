@@ -4,6 +4,7 @@ services:
     build: .
     image: ol4:latest
     command: python3 realtime_data_collector.py config/config-fb.json
+    restart: on-failure
     volumes:
       - ./IBdata:/IBapp/IBdata
     network_mode: "host"
@@ -11,6 +12,7 @@ services:
     build: .
     image: ol4:latest
     command: python3 realtime_data_collector.py config/config-aapl.json
+    restart: on-failure
     volumes:
       - ./IBdata:/IBapp/IBdata
     network_mode: "host"
