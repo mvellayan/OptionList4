@@ -52,7 +52,7 @@ def filterOptionList(expiryList,  quoteAmt: float,  df, strikeBox: int):
 
     #Filter by type.  Calls only
     df = df[df['right'] == 'C']
-    df['strikeDelta'] = df.strike - quoteAmt
+    df['strikeDelta'] = df['strike'] - quoteAmt
     df['absStrikeDelta'] = abs(df['strikeDelta'])
 
     df_pos = None

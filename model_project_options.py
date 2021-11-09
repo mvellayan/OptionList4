@@ -13,16 +13,19 @@ config = {}                      # parameter config object
 expiryList = []                 # list of expiry we are interested in for the given date
 running_missing = 0
 running_total = 0
+total_lookup = 0
 
 def main():
     global symbol, config, stockQuotes, optionList, optionQuotes
-    global running_missing, running_total
+    global running_missing, running_total, total_lookup
 
     config = FileUtil.readConfig("config/config-aapl.json")
-    loadBasicData("/Users/Muthu/Development/OptionList4/IBdata/2021/11/05")
+    dir =
+    loadBasicData("/Users/Muthu/Development/OptionList4/IBdata/2021/11/08")
     stockQuotes.set_index('Time')
     running_missing = 0
     running_total = 0
+    total_lookup = len(stockQuotes) * 18
 
     print(datetime.now().strftime("%Y%m%d %H:%M:%S"), ": Starting projection building")
     df = stockQuotes.apply(lambda x: expandX(x['Time'], x['Last']), axis=1, result_type='expand')
@@ -32,7 +35,7 @@ def main():
     projection = stockQuotes.merge(df, on="Time", how="outer")
 
     print(datetime.now().strftime("%Y%m%d %H:%M:%S"), ": Writing to File")
-    projection.to_csv("/Users/Muthu/Development/OptionList4/IBdata/2021/11/05/outfile.csv")
+    projection.to_csv("/Users/Muthu/Development/OptionList4/IBdata/2021/11/08/outfile.csv")
 
     print(datetime.now().strftime("%Y%m%d %H:%M:%S"), ": Done!")
 
@@ -40,7 +43,7 @@ def main():
 
 def expandX(quoteTime, quoteLast):
     global symbol, config, stockQuotes, optionList, optionQuotes
-    global running_total, running_missing, expiryList
+    global running_total, running_missing, total_lookup, expiryList
     list = IBUtil.filterOptionList(expiryList, quoteLast, optionList, strikeBox=3)
     # pprint (list)
     listLabel = ["c_w1_n3", "c_w1_n2", "c_w1_n1", "c_w1_p1", "c_w1_p2", "c_w1_p3",
@@ -82,7 +85,8 @@ def expandX(quoteTime, quoteLast):
             retDict[listLabel[index] + "_" + "impliedVolatility"] = dct["impliedVolatility"]
         else:
             running_missing += 1
-            print("\t", "missing=[", running_missing, "] total=[", running_total, ']:', qStr, "Missing")
+            print("\t", "missing=[", running_missing, round(running_missing/total_lookup, 4), "% ] total=[",
+                  running_total, "/", total_lookup, round(running_total/total_lookup, 4), '% ]:', qStr, "Missing")
         index += 1
     # print("----------------")
     return retDict
