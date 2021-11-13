@@ -59,7 +59,7 @@ def makeDirectory(fileName):
                 print ( exc )
                 #raise
 
-def getLast(stockQuotes, quoteTime, delta: int):
+def get_quote_with_delta(stockQuotes, quoteTime, delta: int):
     last = None
     for iter in range(3):
         df = stockQuotes.query("Time == " + dateAdd(quoteTime, seconds=(delta+iter)))

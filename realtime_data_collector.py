@@ -73,7 +73,7 @@ def writeQuotesToFile(arg):
             raise NameError('Lost IB Connection  Exiting thread...')
             os.kill(os.getpid(), signal.SIGINT)
         else:
-            if not IBUtil.tradingHours():
+            if not IBUtil.is_trading_hours():
                 ib.disconnect()
                 os.kill(os.getpid(), signal.SIGINT)
                 raise NameError('Market Closed.  Exiting thread...')
@@ -97,7 +97,7 @@ def main(configFileName):
 
     print("Connection Status: ", ib.isConnected())
 
-    contracts = IBUtil.getContractList(ib, config)
+    contracts = IBUtil.get_filtered_contract_list(ib, config)
     pprint(contracts)
     for con in contracts:
         ib.reqMktData(con, '100,104,106', False, False)
@@ -113,7 +113,7 @@ def main(configFileName):
             os.kill(os.getpid(), signal.SIGINT)
             break
         else:
-            if not IBUtil.tradingHours():
+            if not IBUtil.is_trading_hours():
                 ib.disconnect()
                 os.kill(os.getpid(), signal.SIGINT)
                 break

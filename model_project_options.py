@@ -26,7 +26,7 @@ def buildIndex(index_col, quoteTime, conId):
 def expandX(quoteTime, conId, quoteLast):
     global config, pdStockQuotes, pdOptionList, pdOptionQuotes
     global running_total, running_missing, total_lookup, expiryList
-    contractList = IBUtil.filterOptionList(expiryList, quoteLast, pdOptionList, strikeBox=3)
+    contractList = IBUtil.filter_option_list(expiryList, quoteLast, pdOptionList, strikeBox=3)
     # pprint (list)
     listLabel = ["c_w1_n3", "c_w1_n2", "c_w1_n1", "c_w1_p1", "c_w1_p2", "c_w1_p3",
                  "c_w2_n3", "c_w2_n2", "c_w2_n1", "c_w2_p1", "c_w2_p2", "c_w2_p3",
@@ -35,13 +35,13 @@ def expandX(quoteTime, conId, quoteLast):
     index = 0
     retDict["Time"] = quoteTime
 
-    retDict["p0"] = IBUtil.getLast(pdStockQuotes, quoteTime, 0)
-    retDict["p15s"] = IBUtil.getLast(pdStockQuotes, quoteTime, 15)
-    retDict["p30s"] = IBUtil.getLast(pdStockQuotes, quoteTime, 30)
-    retDict["p60s"] = IBUtil.getLast(pdStockQuotes, quoteTime, 60)
-    retDict["p300s"] = IBUtil.getLast(pdStockQuotes, quoteTime, 300)
-    retDict["p600s"] = IBUtil.getLast(pdStockQuotes, quoteTime, 600)
-    retDict["p900s"] = IBUtil.getLast(pdStockQuotes, quoteTime, 900)
+    retDict["p0"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteTime, 0)
+    retDict["p15s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteTime, 15)
+    retDict["p30s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteTime, 30)
+    retDict["p60s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteTime, 60)
+    retDict["p300s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteTime, 300)
+    retDict["p600s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteTime, 600)
+    retDict["p900s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteTime, 900)
 
     for contract in contractList:
         running_total += 1
@@ -105,7 +105,7 @@ def loadBasicData(startingDir):
     quoteTimeStr = str(quoteTime)
     # parse this: 20211105105959
     quoteTimeDate = FileUtil.getDateObj(quoteTimeStr)
-    expiryList = IBUtil.getExpiryList(quoteTimeDate, 3)
+    expiryList = IBUtil.get_expiry_list(quoteTimeDate, 3)
 
     # 3. Read All OptionsQuotes Files to single Panda
     for file in glob.glob(startingDir + "/" + symbol + "2" + "*csv"):

@@ -5,10 +5,9 @@ from datetime import datetime, timedelta, date
 
 import pandas as pd
 from ib_insync import *
-from .FileUtil import *
+from utils.FileUtil import makeDataFileName
 
-
-def writeContractFile(ib, config):
+def write_options_list(ib, config):
 
     # contract.conId = sec["ConId"]
     l_contract = Contract(symbol=config["stock"], secType="OPT", exchange="SMART",
@@ -24,7 +23,7 @@ def writeContractFile(ib, config):
         df.loc[len(df)] = [c.secType, c.conId, c.symbol, c.lastTradeDateOrContractMonth,
                            c.strike, c.right, c.localSymbol]
 
-    fileName = getOptionsListFileName(config)
+    fileName = get_options_list_file_name(config)
     # if file exists, move it
     if os.path.exists(fileName):
         print("File already exists [" + fileName + "]")
@@ -36,7 +35,7 @@ def writeContractFile(ib, config):
     print("Option Contracts written to file [", fileName, "]")
 
 
-def getContractList(ib, config): # -> "[] of stock and option contracts to pull"
+def get_filtered_contract_list(ib, config): # -> "[] of stock and option contracts to pull"
 
     retArray = []  #array of contracts
 
@@ -44,25 +43,27 @@ def getContractList(ib, config): # -> "[] of stock and option contracts to pull"
                    conId=config["stockContractId"], currency="USD")
     retArray.append(stk)
 
+    fileName = get_options_list_file_name(config)
+    if not os.path.exists(fileName):
+        print("Creating new file: [", fileName, "]")
+        write_options_list(ib, config)
+    else:
+        print("OptionsList file found.  Using [", fileName, "]")
+    optionList = pd.read_csv(fileName)
+
     #get last price
     data = ib.reqMktData(stk)
     while data.last != data.last:
         ib.sleep(0.01)  # Wait until data is in.
     ib.cancelMktData(data)
 
-    #
-    fileName = getOptionsListFileName(config)
-    if not os.path.exists(fileName):
-        writeContractFile(ib, config)
-
-    optionList = pd.read_csv(fileName)
     # expiryList, quoteLast, optionList, strikeBox=3)
-    expiryList = getExpiryList(datetime.now(), config["weeksOut"])
-    retArray += filterOptionList(expiryList, data.last,optionList, config["strikeBox"])
+    expiryList = get_expiry_list(datetime.now(), config["weeksOut"])
+    retArray += filter_option_list(expiryList, data.last, optionList, config["strikeBox"])
     return retArray
 
 
-def filterOptionList(expiryList,  quoteAmt: float,  df, strikeBox: int):
+def filter_option_list(expiryList, quoteAmt: float, df, strikeBox: int):
 
     retArray = []
     df_res = None
@@ -104,7 +105,7 @@ def filterOptionList(expiryList,  quoteAmt: float,  df, strikeBox: int):
     return retArray
 
 
-def tradingHours():
+def is_trading_hours():
     now = datetime.now()
     hour = int(now.astimezone(pytz.timezone('US/Eastern')).strftime("%H"))
     if hour in range(9,17): # checking hours for now
@@ -114,7 +115,7 @@ def tradingHours():
         return False
 
 
-def getOptionsListFileName(config):
+def get_options_list_file_name(config):
     dateStr = datetime.now().astimezone(pytz.timezone('US/Eastern')).strftime("%Y%m%d")
     return makeDataFileName(config["stock"] + "_optionList_" + dateStr, False)
 
@@ -142,7 +143,7 @@ class MarketData:
             self.impliedVolatility = ticker.impliedVolatility
 
 
-def getExpiryList(quoteTimeDate: datetime, noWeeks: int):
+def get_expiry_list(quoteTimeDate: datetime, noWeeks: int):
     expiryListArr = []
     wDate = quoteTimeDate
     for i in range(noWeeks):

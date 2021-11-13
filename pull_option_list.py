@@ -23,7 +23,7 @@ def main(configFileName):
 
     print("Connection Status: ", ib.isConnected())
 
-    IBUtil.writeContractFile(ib, config)
+    IBUtil.write_options_list(ib, config)
 
 
 
