@@ -7,6 +7,35 @@ import pandas as pd
 from ib_insync import *
 from .FileUtil import *
 
+
+def writeContractFile(ib, config):
+
+    # contract.conId = sec["ConId"]
+    l_contract = Contract(symbol=config["stock"], secType="OPT", exchange="SMART",
+                          currency="USD")
+
+    contractList = ib.reqContractDetails(l_contract)
+    df = pd.DataFrame(columns=['secType', 'conId', 'symbol', 'lastTradeDateOrContractMonth',
+                               'strike', 'right', 'localSymbol'])
+
+    # move contractList to panda so we can easily write it to a csv file
+    for obj in contractList:
+        c = obj.contract
+        df.loc[len(df)] = [c.secType, c.conId, c.symbol, c.lastTradeDateOrContractMonth,
+                           c.strike, c.right, c.localSymbol]
+
+    fileName = getOptionsListFileName(config)
+    # if file exists, move it
+    if os.path.exists(fileName):
+        print("File already exists [" + fileName + "]")
+        newFileName = fileName + "_" + datetime.now().strftime("%H%M%S")
+        print("Moving it to timestamp file: " + newFileName)
+        os.rename(fileName, newFileName)
+
+    df.to_csv(fileName)
+    print("Option Contracts written to file [", fileName, "]")
+
+
 def getContractList(ib, config): # -> "[] of stock and option contracts to pull"
 
     retArray = []  #array of contracts
@@ -14,50 +43,35 @@ def getContractList(ib, config): # -> "[] of stock and option contracts to pull"
     stk = Contract(symbol=config["stock"], secType="STK", exchange="SMART",
                    conId=config["stockContractId"], currency="USD")
     retArray.append(stk)
-    #contract.conId = sec["ConId"]
 
-    contract = Contract(symbol=config["stock"], secType="OPT", exchange="SMART",
-                        currency="USD")
-
-    dateStr = datetime.now().astimezone(pytz.timezone('US/Eastern')).strftime("%Y%m%d")
-    fileName = getFileName(config["stock"] + "_optionList_" + dateStr, addTimestamp=False)
-
-    if not os.path.exists(fileName):
-        x = ib.reqContractDetails(contract)
-        df = pd.DataFrame(
-            columns=['secType', 'conId', 'symbol', 'lastTradeDateOrContractMonth', 'strike', 'right', 'localSymbol'])
-        for obj in x:
-            c = obj.contract
-            df.loc[len(df)] = [c.secType, c.conId, c.symbol, c.lastTradeDateOrContractMonth,
-                               c.strike, c.right, c.localSymbol ]
-        df.to_csv(fileName)
-    else:
-        print("File already exists [" + fileName + "]")
-
+    #get last price
     data = ib.reqMktData(stk)
     while data.last != data.last:
         ib.sleep(0.01)  # Wait until data is in.
     ib.cancelMktData(data)
 
+    #
+    fileName = getOptionsListFileName(config)
+    if not os.path.exists(fileName):
+        writeContractFile(ib, config)
+
     optionList = pd.read_csv(fileName)
-    #expiryList, quoteLast, optionList, strikeBox=3)
+    # expiryList, quoteLast, optionList, strikeBox=3)
     expiryList = getExpiryList(datetime.now(), config["weeksOut"])
     retArray += filterOptionList(expiryList, data.last,optionList, config["strikeBox"])
     return retArray
 
+
 def filterOptionList(expiryList,  quoteAmt: float,  df, strikeBox: int):
 
     retArray = []
-    df_exp = []
+    df_res = None
 
     #Filter by type.  Calls only
     df = df[df['right'] == 'C']
     df['strikeDelta'] = df['strike'] - quoteAmt
     df['absStrikeDelta'] = abs(df['strikeDelta'])
 
-    df_pos = None
-    df_neg = None
-    df_res = None
     #filter by expiration date
     for i, exp in enumerate(expiryList):
         # df_exp[i] = df[df['lastTradeDateOrContractMonth'] == exp]
@@ -98,6 +112,11 @@ def tradingHours():
     else:
         print("\n\n\t\t Non-trading hour.[", hour, "] Can't get realtime data. ", now)
         return False
+
+
+def getOptionsListFileName(config):
+    dateStr = datetime.now().astimezone(pytz.timezone('US/Eastern')).strftime("%Y%m%d")
+    return makeDataFileName(config["stock"] + "_optionList_" + dateStr, False)
 
 
 class MarketData:

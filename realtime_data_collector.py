@@ -47,7 +47,7 @@ def saveDataInCSV():
         #pprint(queue)
         if len(queue) == 0:
             break
-        with open(FileUtil.getFileName(symbol), 'w', encoding='UTF8', newline='') as f:
+        with open(FileUtil.makeDataFileName(symbol), 'w', encoding='UTF8', newline='') as f:
             writer = csv.writer(f)
             writer.writerow(header)
             for timeStamp in queue:
@@ -100,7 +100,7 @@ def main(configFileName):
     contracts = IBUtil.getContractList(ib, config)
     pprint(contracts)
     for con in contracts:
-        ib.reqMktData(con, '104,106', False, False)
+        ib.reqMktData(con, '100,104,106', False, False)
     ib.sleep(2)
 
     ib.pendingTickersEvent += onPendingTicker

@@ -33,7 +33,7 @@ def readConfig(fileName):
     return data
 
 
-def getFileName(inputFileName, addTimestamp = True):
+def makeDataFileName(inputFileName, addTimestamp = True):
     now = datetime.now()  # current date and time
     year_str = now.strftime("%Y")
     month_str = now.strftime("%m")
