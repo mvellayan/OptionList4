@@ -1,10 +1,9 @@
-import csv
 import sys, os, signal
 from pprint import pprint
-import threading
+import threading, csv
+from threading import Condition
 import time
 from datetime import datetime
-from threading import Condition
 
 import pytz
 from ib_insync import *
@@ -70,31 +69,6 @@ def writeQuotesToFile(arg):
             queues_start_time = datetime.now()
             saveDataInCSV()
 
-            # Update contracts: Remove old contracts
-            new_contracts = IBUtil.get_filtered_contract_list(ib, config)
-
-            found_changes = False
-            for con in contracts:
-                if con not in new_contracts:
-                    found_changes = True
-                    break
-
-            if found_changes:
-                print("Change detected.  New Contracts: ------------------")
-
-                # Update contracts: Remove old contracts not in new list
-                for con in contracts:
-                    if con not in new_contracts:
-                        ib.cancelMktData(con)
-                # Update contracts: add new contracts not in old list
-                if con in new_contracts:
-                    if con not in contracts:
-                        ib.reqMktData(con, '100,104,106', False, False)
-
-                contracts = new_contracts
-                pprint(contracts)
-
-
         if not ib.isConnected():
             raise NameError('Lost IB Connection  Exiting thread...')
             os.kill(os.getpid(), signal.SIGINT)
@@ -131,6 +105,7 @@ def main(configFileName):
 
     ib.pendingTickersEvent += onPendingTicker
 
+    ctr = 0
     while True:
         #ib.run(timeout=6)
         ib.sleep(60)
@@ -143,6 +118,32 @@ def main(configFileName):
                 ib.disconnect()
                 os.kill(os.getpid(), signal.SIGINT)
                 break
+        ctr += 1
+        if ctr > 9:
+            print("checking for contract changes.")
+            ctr = 0
+            # Update contracts: Remove old contracts
+            new_contracts = IBUtil.get_filtered_contract_list(ib, config)
+            found_changes = False
+            for con in contracts:
+                if con not in new_contracts:
+                    found_changes = True
+                    break
+            if found_changes:
+                print("Contract List changes detected.  New Contracts: ------------------")
+                pprint(new_contracts)
+                # Update contracts: Remove old contracts not in new list
+                for con in contracts:
+                    if con not in new_contracts:
+                        ib.cancelMktData(con)
+                # Update contracts: add new contracts not in old list
+                if con in new_contracts:
+                    if con not in contracts:
+                        ib.reqMktData(con, '100,104,106', False, False)
+                contracts = new_contracts
+            else:
+                print("No changes detected.  Using the same contract list")
+
 
 
 if __name__ == "__main__":

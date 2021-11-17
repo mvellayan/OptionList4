@@ -52,10 +52,10 @@ def get_filtered_contract_list(ib, config): # -> "[] of stock and option contrac
     optionList = pd.read_csv(fileName)
 
     #get last price
-    data = ib.reqMktData(stk)
+    data = ib.reqMktData(42, stk)
     while data.last != data.last:
         ib.sleep(0.01)  # Wait until data is in.
-    ib.cancelMktData(data)
+    ib.cancelMktData(42)
 
     # expiryList, quoteLast, optionList, strikeBox=3)
     expiryList = get_expiry_list(datetime.now(), config["weeksOut"])
