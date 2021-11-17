@@ -73,7 +73,8 @@ def writeQuotesToFile(arg):
 
         if not ib.isConnected():
             raise NameError('Lost IB Connection  Exiting thread...')
-            os.kill(os.getpid(), signal.SIGINT)
+            exit(0)
+            # os.kill(os.getpid(), signal.SIGINT)
         else:
             if not IBUtil.is_trading_hours():
                 ib.disconnect()
@@ -110,17 +111,18 @@ def main(configFileName):
 
     ctr = 0
     while True:
-        #ib.run(timeout=6)
+        # ib.run(timeout=6)
         ib.sleep(60)
         if not ib.isConnected():
             p("Lost IB connection. Exiting.")
-            os.kill(os.getpid(), signal.SIGINT)
+            exit(0)
+            # os.kill(os.getpid(), signal.SIGINT)
             break
         else:
             if not IBUtil.is_trading_hours():
                 ib.disconnect()
                 exit(0)
-                #os.kill(os.getpid(), signal.SIGINT)
+                # os.kill(os.getpid(), signal.SIGINT)
                 break
         ctr += 1
         # Update contracts: Remove old contracts
