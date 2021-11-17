@@ -77,7 +77,8 @@ def writeQuotesToFile(arg):
         else:
             if not IBUtil.is_trading_hours():
                 ib.disconnect()
-                os.kill(os.getpid(), signal.SIGINT)
+                exit(0)
+                # os.kill(os.getpid(), signal.SIGINT)
                 raise NameError('Market Closed.  Exiting thread...')
 
 
@@ -118,7 +119,8 @@ def main(configFileName):
         else:
             if not IBUtil.is_trading_hours():
                 ib.disconnect()
-                os.kill(os.getpid(), signal.SIGINT)
+                exit(0)
+                #os.kill(os.getpid(), signal.SIGINT)
                 break
         ctr += 1
         # Update contracts: Remove old contracts
