@@ -149,8 +149,9 @@ def main(dirName):
     print(datetime.now().strftime("%Y%m%d %H:%M:%S"), ": Starting Joining")
     projection = pdStockQuotes.merge(df, on="Time", how="outer")
 
-    print(datetime.now().strftime("%Y%m%d %H:%M:%S"), ": Writing to File")
-    projection.to_csv(dirName + "/projection_stock_call_options.csv")
+    outfile = dirName + "/projection_stock_call_options.csv"
+    print(datetime.now().strftime("%Y%m%d %H:%M:%S"), ": Writing to File [", outfile, "]")
+    projection.to_csv(outfile)
 
     print(datetime.now().strftime("%Y%m%d %H:%M:%S"), ": Done!")
 
