@@ -111,7 +111,7 @@ def filter_option_list(expiryList, quoteAmt: float, df, strikeBox: int):
 def is_trading_hours():
     now = datetime.now()
     hour = int(now.astimezone(pytz.timezone('US/Eastern')).strftime("%H"))
-    if hour in range(9,17): # checking hours for now
+    if hour in range(9, 16): # checking hours for now
         return True
     else:
         print("\n\n\t\t Non-trading hour.[", hour, "] Can't get realtime data. ", now)

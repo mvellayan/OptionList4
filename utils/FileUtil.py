@@ -1,16 +1,13 @@
-import csv
 import errno
 import json
 import os
 import re
-import sys
 from datetime import datetime, timedelta
-from pprint import pprint
 
 from ib_insync import *
 
-def p (*args):
-    print (datetime.now().strftime("%Y%m%d %H:%M:%S") + ": ", *args)
+def p(*args):
+    print(datetime.now().strftime("%Y%m%d %H:%M:%S") + ": ", *args)
 
 def readConfig(fileName):
     data = {}

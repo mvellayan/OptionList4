@@ -12,6 +12,8 @@ from utils import FileUtil, IBUtil
 
 #
 # see: https://github.com/erdewit/ib_insync
+from utils.FileUtil import p
+
 queues = {}
 queues_start_time = datetime.now()
 config = {}
@@ -26,7 +28,7 @@ def onPendingTicker(tickers):
 
     for t in tickers:
         indexStr = t.time.strftime("%Y%m%d%H%M%S")
-        # print("Received [" + t.time.strftime("%Y%m%d%H%M%S.%f") + "] [" + indexStr + "]", t)
+        # p("Received [" + t.time.strftime("%Y%m%d%H%M%S.%f") + "] [" + indexStr + "]", t)
         if t.contract.symbol in queues:
             queue = queues[t.contract.symbol]
         else:
@@ -43,8 +45,8 @@ def saveDataInCSV():
               'Last', 'LastSize', 'Volume', 'histVolatility', 'impliedVolatility']
     for symbol in queues:
         queue = queues.get(symbol)
-        #print(symbol, "->")
-        #pprint(queue)
+        #p(symbol, "->")
+        #p(queue)
         if len(queue) == 0:
             break
         with open(FileUtil.makeDataFileName(symbol), 'w', encoding='UTF8', newline='') as f:
@@ -65,7 +67,7 @@ def writeQuotesToFile(arg):
     while True:
         time.sleep(60) # Sleep 1 minute
         if (datetime.now() - queues_start_time).total_seconds() >= config["file_flush_seconds"]:
-            print(datetime.now().strftime("%Y%m%d%H%M%S") , ": Writing to file.")
+            p("Writing to file.")
             queues_start_time = datetime.now()
             saveDataInCSV()
 
@@ -88,14 +90,14 @@ def main(configFileName):
     writeThread = threading.Thread(target=writeQuotesToFile, args=(1,))
     writeThread.start()
 
-    print("Connecting to ip [", config["tws_host"], "] port[", config["tws_port"], "] clientId [", config["tws_port"], "]")
+    p("Connecting to ip [", config["tws_host"], "] port[", config["tws_port"], "] clientId [", config["tws_port"], "]")
     try:
         ib.connect(config["tws_host"], config["tws_port"], clientId=config["tws_port"])
     except BaseException as err:
-        print(f"Unexpected {err=}, {type(err)=}")
+        p(f"Unexpected {err=}, {type(err)=}")
         raise NameError("Cannot connect to IB")
 
-    print("Connection Status: ", ib.isConnected())
+    p("Connection Status: ", ib.isConnected())
 
     contracts = IBUtil.get_filtered_contract_list(ib, config)
     pprint(contracts)
@@ -110,7 +112,7 @@ def main(configFileName):
         #ib.run(timeout=6)
         ib.sleep(60)
         if not ib.isConnected():
-            print("Lost IB connection. Exiting.")
+            p("Lost IB connection. Exiting.")
             os.kill(os.getpid(), signal.SIGINT)
             break
         else:
@@ -127,28 +129,28 @@ def main(configFileName):
                 found_changes = True
                 break
         if found_changes:
-            print("Found Changes, processing new contract list:")
+            p("Found Changes, processing new contract list:")
             pprint(new_contracts)
             # Update contracts: Remove old contracts not in new list
             for con in contracts:
                 if con not in new_contracts:
-                    print("removing contract:", con)
+                    p("removing contract:", con)
                     ib.cancelMktData(con)
             # Update contracts: add new contracts not in old list
             for con in new_contracts:
                 if con not in contracts:
-                    print("adding contract:", con)
+                    p("adding contract:", con)
                     ib.reqMktData(con, '100,104,106', False, False)
             contracts = new_contracts
         else:
-            print("No changes detected.  Using the same contract list")
+            p("No changes detected.  Using the same contract list")
 
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("\n\nUsage: collect_data.py <config_file.yml>\n\n")
+        p("\n\nUsage: collect_data.py <config_file.yml>\n\n")
         sys.exit(0)
     else:
-        print("using config file [" + sys.argv[1] + "]")
+        p("using config file [" + sys.argv[1] + "]")
 
     main(sys.argv[1])
