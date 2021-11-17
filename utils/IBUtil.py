@@ -57,7 +57,7 @@ def get_filtered_contract_list(ib, config, force_pull=False): # -> "[] of stock 
     while data.last != data.last:
         ib.sleep(0.01)  # Wait until data is in.
     # ib.cancelMktData(42)
-    print(data)
+    #print(data)
     print("\nUsing last quote:", data.last)
 
     # expiryList, quoteLast, optionList, strikeBox=3)
