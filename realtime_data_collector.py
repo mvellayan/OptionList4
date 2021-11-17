@@ -135,10 +135,12 @@ def main(configFileName):
                 # Update contracts: Remove old contracts not in new list
                 for con in contracts:
                     if con not in new_contracts:
+                        print("removing contract:", con)
                         ib.cancelMktData(con)
                 # Update contracts: add new contracts not in old list
                 if con in new_contracts:
                     if con not in contracts:
+                        print("adding contract:", con)
                         ib.reqMktData(con, '100,104,106', False, False)
                 contracts = new_contracts
             else:
