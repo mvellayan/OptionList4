@@ -119,14 +119,14 @@ def main(configFileName):
                 os.kill(os.getpid(), signal.SIGINT)
                 break
         ctr += 1
-        if ctr > 9:
+        if ctr > 0:
             print("checking for contract changes.")
             ctr = 0
             # Update contracts: Remove old contracts
             new_contracts = IBUtil.get_filtered_contract_list(ib, config)
-            found_changes = False
-            for con in contracts:
-                if con not in new_contracts:
+            found_changes = True
+            for con in new_contracts:
+                if con not in contracts:
                     found_changes = True
                     break
             if found_changes:
