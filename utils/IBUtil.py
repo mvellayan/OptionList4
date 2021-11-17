@@ -53,7 +53,7 @@ def get_filtered_contract_list(ib, config): # -> "[] of stock and option contrac
 
     #get last price
     #self, reqId, contract, genericTickList, snapshot, regulatorySnapshot, mktDataOptions):
-    data = ib.reqMktData(reqId=42, contract=stk,snapshot=True)
+    data = ib.reqMktData(contract=stk, snapshot=True)
     while data.last != data.last:
         ib.sleep(0.01)  # Wait until data is in.
     # ib.cancelMktData(42)
