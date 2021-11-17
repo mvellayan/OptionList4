@@ -82,7 +82,7 @@ def writeQuotesToFile(arg):
 
 
 def main(configFileName):
-    global config
+    global config, contracts
     config = FileUtil.readConfig(configFileName)
 
     writeThread = threading.Thread(target=writeQuotesToFile, args=(1,))
@@ -119,32 +119,29 @@ def main(configFileName):
                 os.kill(os.getpid(), signal.SIGINT)
                 break
         ctr += 1
-        if ctr > 9:
-            print("checking for contract changes.")
-            ctr = 0
-            # Update contracts: Remove old contracts
-            new_contracts = IBUtil.get_filtered_contract_list(ib, config)
-            found_changes = False
+        # Update contracts: Remove old contracts
+        new_contracts = IBUtil.get_filtered_contract_list(ib, config, (ctr % 5 == 0))
+        found_changes = False
+        for con in new_contracts:
+            if con not in contracts:
+                found_changes = True
+                break
+        if found_changes:
+            print("Found Changes, processing new contract list:")
+            pprint(new_contracts)
+            # Update contracts: Remove old contracts not in new list
+            for con in contracts:
+                if con not in new_contracts:
+                    print("removing contract:", con)
+                    ib.cancelMktData(con)
+            # Update contracts: add new contracts not in old list
             for con in new_contracts:
                 if con not in contracts:
-                    found_changes = True
-                    break
-            if found_changes:
-                print("Processing new contract list")
-                pprint(new_contracts)
-                # Update contracts: Remove old contracts not in new list
-                for con in contracts:
-                    if con not in new_contracts:
-                        print("removing contract:", con)
-                        ib.cancelMktData(con)
-                # Update contracts: add new contracts not in old list
-                for con in new_contracts:
-                    if con not in contracts:
-                        print("adding contract:", con)
-                        ib.reqMktData(con, '100,104,106', False, False)
-                contracts = new_contracts
-            else:
-                print("No changes detected.  Using the same contract list")
+                    print("adding contract:", con)
+                    ib.reqMktData(con, '100,104,106', False, False)
+            contracts = new_contracts
+        else:
+            print("No changes detected.  Using the same contract list")
 
 
 if __name__ == "__main__":

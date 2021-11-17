@@ -7,7 +7,7 @@ import pandas as pd
 from ib_insync import *
 from utils.FileUtil import makeDataFileName
 
-def write_options_list(ib, config):
+def pull_options_list(ib, config):
 
     # contract.conId = sec["ConId"]
     l_contract = Contract(symbol=config["stock"], secType="OPT", exchange="SMART",
@@ -35,7 +35,7 @@ def write_options_list(ib, config):
     print("Option Contracts written to file [", fileName, "]")
 
 
-def get_filtered_contract_list(ib, config): # -> "[] of stock and option contracts to pull"
+def get_filtered_contract_list(ib, config, force_pull=False): # -> "[] of stock and option contracts to pull"
 
     retArray = []  #array of contracts
 
@@ -44,9 +44,9 @@ def get_filtered_contract_list(ib, config): # -> "[] of stock and option contrac
     retArray.append(stk)
 
     fileName = get_options_list_file_name(config)
-    if not os.path.exists(fileName):
+    if (not os.path.exists(fileName)) or force_pull:
         print("Creating new file: [", fileName, "]")
-        write_options_list(ib, config)
+        pull_options_list(ib, config)
     else:
         print("OptionsList file found.  Using [", fileName, "]")
     optionList = pd.read_csv(fileName)
