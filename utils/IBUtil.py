@@ -5,7 +5,8 @@ from datetime import datetime, timedelta, date
 
 import pandas as pd
 from ib_insync import *
-from utils.FileUtil import makeDataFileName
+from utils.FileUtil import makeDataFileName, p
+
 
 def pull_options_list(ib, config):
 
@@ -26,13 +27,13 @@ def pull_options_list(ib, config):
     fileName = get_options_list_file_name(config)
     # if file exists, move it
     if os.path.exists(fileName):
-        print("File already exists [" + fileName + "]")
+        p("File already exists [" + fileName + "]")
         newFileName = fileName + "_" + datetime.now().strftime("%H%M%S")
-        print("Moving it to timestamp file: " + newFileName)
+        p("Moving it to timestamp file: " + newFileName)
         os.rename(fileName, newFileName)
 
     df.to_csv(fileName)
-    print("Option Contracts written to file [", fileName, "]")
+    p("Option Contracts written to file [", fileName, "]")
 
 
 def get_filtered_contract_list(ib, config, force_pull=False): # -> "[] of stock and option contracts to pull"
@@ -45,10 +46,10 @@ def get_filtered_contract_list(ib, config, force_pull=False): # -> "[] of stock 
 
     fileName = get_options_list_file_name(config)
     if (not os.path.exists(fileName)) or force_pull:
-        print("Creating new file: [", fileName, "]")
+        p("Creating new file: [", fileName, "]")
         pull_options_list(ib, config)
     else:
-        print("OptionsList file found.  Using [", fileName, "]")
+        p("OptionsList file found.  Using [", fileName, "]")
     optionList = pd.read_csv(fileName)
 
     #get last price
@@ -57,8 +58,8 @@ def get_filtered_contract_list(ib, config, force_pull=False): # -> "[] of stock 
     while data.last != data.last:
         ib.sleep(0.01)  # Wait until data is in.
     # ib.cancelMktData(42)
-    #print(data)
-    print("\nUsing last quote:", data.last)
+    #p(data)
+    p("\nUsing last quote:", data.last)
 
     # expiryList, quoteLast, optionList, strikeBox=3)
     expiryList = get_expiry_list(datetime.now(), config["weeksOut"])
@@ -92,18 +93,18 @@ def filter_option_list(expiryList, quoteAmt: float, df, strikeBox: int):
         df_w = df_neg.sort_values(['strikeDelta'], ascending=False).head(strikeBox)
         df_res = df_res.append(df_w)
 
-    # print(df_res.describe())
+    # p(df_res.describe())
 
-    # print('\n\n--------------------- Strike (', quoteAmt, ')---------------')
+    # p('\n\n--------------------- Strike (', quoteAmt, ')---------------')
     df_res = df_res.sort_values(by=['lastTradeDateOrContractMonth', 'strike'], ascending=True)
     for ind in df_res.index:
-        # print(df_res["conId"][ind], df_res["strike"][ind],
+        # p(df_res["conId"][ind], df_res["strike"][ind],
         #      df_res["lastTradeDateOrContractMonth"][ind], df_res["localSymbol"][ind])
         retArray.append(Contract(conId=df_res["conId"][ind],  secType="OPT", exchange="SMART",
                                  currency="USD", right=df_res["right"][ind], symbol=df_res["localSymbol"][ind],
                                  strike=df_res["strike"][ind], lastTradeDateOrContractMonth =
                                  df_res["lastTradeDateOrContractMonth"][ind]))
-    # print('\n Summary: Above Strike (', df_res.shape, ') \n')
+    # p('\n Summary: Above Strike (', df_res.shape, ') \n')
 
     return retArray
 
@@ -114,7 +115,7 @@ def is_trading_hours():
     if hour in range(9, 16): # checking hours for now
         return True
     else:
-        print("\n\n\t\t Non-trading hour.[", hour, "] Can't get realtime data. ", now)
+        p("\n\n\t\t Non-trading hour.[", hour, "] Can't get realtime data. ", now)
         return False
 
 

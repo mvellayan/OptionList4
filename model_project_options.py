@@ -7,11 +7,12 @@ from timeit import default_timer as timer
 from datetime import timedelta
 
 from utils import FileUtil, IBUtil
+from utils.FileUtil import p
 
 pdOptionList: pd.DataFrame = None     # Data Frame all options Contracts for the symbol
 pdStockQuotes: pd.DataFrame = None    # Data Frame all date/time quotes for the symbol
 pdOptionQuotes: pd.DataFrame = None   # Data Frame all date/time quotes for all options
-pdOptionQuotesIdx = { }
+pdOptionQuotesIdx = {}
 config = {}                      # parameter config object
 expiryList = []                 # list of expiry we are interested in for the given date
 running_missing = 0
@@ -20,7 +21,7 @@ total_lookup = 0
 
 def buildIndex(index_col, quoteTime, conId):
     pdOptionQuotesIdx[str(conId) + ":" + str(quoteTime)] = index_col
-    #print("Loading- " + str(conId) + ":" + str(quoteTime) + " => " + str(index_col))
+    # print("Loading- " + str(conId) + ":" + str(quoteTime) + " => " + str(index_col))
 
 
 def expandX(quoteTime, conId, quoteLast):
@@ -45,7 +46,7 @@ def expandX(quoteTime, conId, quoteLast):
 
     for contract in contractList:
         running_total += 1
-        # apprach 2
+        # approach 2
         idx = pdOptionQuotesIdx.get(str(contract.conId) + ":" + str(quoteTime))
         # print("<<<<<<<<- " + str(conId) + ":" + str(quoteTime) + " => " + str(idx))
 
@@ -57,7 +58,7 @@ def expandX(quoteTime, conId, quoteLast):
                       str(conId) + ":" + str(quoteTime), "Missing")
         else:
             # print ( idx, pdOptionQuotes.shape )
-            res = pdOptionQuotes.loc[ idx]
+            res = pdOptionQuotes.loc[idx]
             retDict[listLabel[index] + "_" + "Ask"] = res["Ask"]
             retDict[listLabel[index] + "_" + "AskSize"] = res["AskSize"]
             retDict[listLabel[index] + "_" + "Bid"] = res["Bid"]
@@ -79,7 +80,6 @@ def loadBasicData(startingDir):
     symbol = config["stock"]
 
     # 2. Read Each OptionList Files to Panda.
-    filePattern = startingDir + "/" + symbol + "*optionList*csv"
     for file in glob.glob(startingDir + "/" + symbol + "*optionList*csv"):
         pdOptionList = pd.read_csv(file)
 
@@ -95,12 +95,12 @@ def loadBasicData(startingDir):
 
     # No files in the directory
     if pdStockQuotes is None:
-        print ("No files in the directory?? " + startingDir + "/" + symbol + "_" + "*csv")
+        p("No files in the directory?? " + startingDir + "/" + symbol + "_" + "*csv")
         return False
     else:
-        print("Found [", pdStockQuotes.shape, "] stocks rows.")
+        p("Found [", pdStockQuotes.shape, "] stocks rows.")
 
-    #print(pdStockQuotes[['Time']].values[0][0])
+    # print(pdStockQuotes[['Time']].values[0][0])
     quoteTime: int = pdStockQuotes[['Time']].values[0][0]
     quoteTimeStr = str(quoteTime)
     # parse this: 20211105105959
@@ -125,50 +125,46 @@ def main(dirName):
     global running_missing, running_total, total_lookup
 
     if not loadBasicData(dirName):
-        print("Cant find data in this dir: ", dirName)
+        p("Cant find data in this dir: ", dirName)
         return
 
     running_total = running_missing = 0
     total_lookup = len(pdStockQuotes) * 18
 
     # perform index
-    # for index, row in pdOptionQuotes.iterrows():
     pdOptionQuotes['index_col'] = pdOptionQuotes.index
     # print(pdOptionQuotes[['index_col', 'ConId', 'Time']])
-    pdOptionQuotes.apply(lambda y: buildIndex( y['index_col'], y['Time'], y['ConId']), axis=1, result_type='expand')
+    pdOptionQuotes.apply(lambda y: buildIndex(y['index_col'], y['Time'], y['ConId']), axis=1, result_type='expand')
 
     # Section
     start = timer()
-    # print(datetime.now().strftime("%Y%m%d %H:%M:%S"), ": Starting projection building")
     df = pdStockQuotes.apply(lambda x: expandX(x['Time'], x['ConId'], x['Last']), axis=1, result_type='expand')
     df.set_index('Time')
     end = timer()
-    print("TIME: Projecting: ",  timedelta(seconds=end - start))
+    p("TIME: Projecting: ",  timedelta(seconds=end - start))
 
     # Section
-    print(datetime.now().strftime("%Y%m%d %H:%M:%S"), ": Starting Joining")
+    p(" Starting Joining")
     projection = pdStockQuotes.merge(df, on="Time", how="outer")
 
     outfile = dirName + "/projection_stock_call_options.csv"
-    print(datetime.now().strftime("%Y%m%d %H:%M:%S"), ": Writing to File [", outfile, "]")
+    p(" Writing to File [", outfile, "]")
     projection.to_csv(outfile)
 
-    print(datetime.now().strftime("%Y%m%d %H:%M:%S"), ": Done!")
+    p("Done!")
 
 
 if __name__ == "__main__":
     pd.set_option('display.max_columns', None)
     if len(sys.argv) < 2:
-        print("\n\nUsage: project.py <config_file.yml>\n\n")
+        p("\n\nUsage: project.py <config_file.yml>\n\n")
         sys.exit(0)
     else:
-        print("using config file [" + sys.argv[1] + "]")
+        p("using config file [" + sys.argv[1] + "]")
 
     config = FileUtil.readConfig(sys.argv[1])
-    for dir in os.walk("IBdata/"):
-        for files in dir[2]:
+    for directory in os.walk("IBdata/"):
+        for files in directory[2]:
             if config["stock"] + 'optionList' in files:
-                print ("In main loop.  Found/Processing directory: ", dir[0])
-                main(dir[0])
-                break
-                print("Stopping for debugging.  Dir:", dir[2])
+                p("In main loop.  Found/Processing directory: ", directory[0])
+                main(directory[0])

@@ -19,7 +19,7 @@ def readConfig(fileName):
         # pprint(data)
         f.close()
     except OSError:
-        print('cannot open file', fileName)
+        p('cannot open file', fileName)
         sys.exit(1)
     # verify fields exist
     # print("\nINFO: parameters Check:")
@@ -29,7 +29,7 @@ def readConfig(fileName):
     x = data["stock"]
     x = data["weeksOut"]
     x = data["strikeBox"]
-    print("\n")
+    p("\n")
     return data
 
 
@@ -55,8 +55,8 @@ def makeDirectory(fileName):
             os.makedirs(os.path.dirname(fileName))
         except OSError as exc:  # Guard against race condition
             if exc.errno != errno.EEXIST:
-                print ("ERROR")
-                print ( exc )
+                p("ERROR")
+                p(exc)
                 #raise
 
 def get_quote_with_delta(stockQuotes, quoteTime, delta: int):
@@ -82,7 +82,7 @@ def getDateObj(inTime):  #input can be string or int
     elif type(inTime) == str:
         pass
     else:
-        print("Unexpected parameter type: ", type(inTime))
+        p("Unexpected parameter type: ", type(inTime))
         sys.exit(0)
 
     return datetime(int(inTime[0:4]), int(inTime[4:6]),
