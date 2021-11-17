@@ -126,7 +126,6 @@ def main(configFileName):
             new_contracts = IBUtil.get_filtered_contract_list(ib, config)
             found_changes = False
             for con in new_contracts:
-                print("Found new contract")
                 if con not in contracts:
                     found_changes = True
                     break
