@@ -17,7 +17,8 @@ queues = {}
 queues_start_time = datetime.now()
 config = {}
 condition = Condition()
-ib = IB()
+ib = IB() # IB connection
+contracts = [] #array of contracts we are trackng
 
 
 def onPendingTicker(tickers):
@@ -61,13 +62,38 @@ def saveDataInCSV():
 
 
 def writeQuotesToFile(arg):
-    global queues_start_time
+    global queues_start_time, contracts
     while True:
-        time.sleep(60)
+        time.sleep(60) # Sleep 1 minute
         if (datetime.now() - queues_start_time).total_seconds() >= config["file_flush_seconds"]:
             print(datetime.now().strftime("%Y%m%d%H%M%S") , ": Writing to file.")
             queues_start_time = datetime.now()
             saveDataInCSV()
+
+            # Update contracts: Remove old contracts
+            new_contracts = IBUtil.get_filtered_contract_list(ib, config)
+
+            found_changes = False
+            for con in contracts:
+                if con not in new_contracts:
+                    found_changes = True
+                    break
+
+            if found_changes:
+                print("Change detected.  New Contracts: ------------------")
+
+                # Update contracts: Remove old contracts not in new list
+                for con in contracts:
+                    if con not in new_contracts:
+                        ib.cancelMktData(con)
+                # Update contracts: add new contracts not in old list
+                if con in new_contracts:
+                    if con not in contracts:
+                        ib.reqMktData(con, '100,104,106', False, False)
+
+                contracts = new_contracts
+                pprint(contracts)
+
 
         if not ib.isConnected():
             raise NameError('Lost IB Connection  Exiting thread...')
