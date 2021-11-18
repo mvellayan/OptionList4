@@ -1,7 +1,7 @@
 import math
 import os
 import pytz
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta
 
 import pandas as pd
 from ib_insync import *
@@ -115,7 +115,7 @@ def is_trading_hours():
     if hour in range(9, 16): # checking hours for now
         return True
     else:
-        p("\n\n\t\t Non-trading hour.[", hour, "] Can't get realtime data. ", now)
+        p("\t\t Non-trading hour.[", hour, "] Can't get realtime data. ", now)
         return False
 
 

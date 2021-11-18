@@ -1,4 +1,5 @@
-import sys, os, signal
+import os
+import sys
 import subprocess
 from pprint import pprint
 import threading, csv
@@ -63,6 +64,41 @@ def saveDataInCSV():
     condition.release()
 
 
+def check_IB_conneciton_broke(ib, msg: str):
+    isTradingHours = IBUtil.is_trading_hours()
+    isConnected = ib.isConnected()
+    if isConnected and isTradingHours:
+        # we are good. Praise the Lord!
+        return False
+    elif ((not isConnected) and isTradingHours):
+        subject = "Lost connection during trading hours.  Will Restart"
+        p(subject, msg)
+        output = subprocess.getoutput("~/Development/OptionList4/start.sh")
+        msg += "\nRestart results:\n" + output
+        email_notification = \
+            "aws sns publish " + \
+            ' --topic-arn "arn:aws:sns:us-east-1:775579389744:notifyMuthu"' + \
+            ' --subject "' + subject + \
+            '" --message "' + msg + '"'
+        p("emailing command: ", email_notification)
+        os.system(email_notification)
+        exit(0)
+    elif not isTradingHours:
+        p("Not trading hours.  Stopping. " + msg)
+        if isConnected:
+            ib.disconnect()
+        exit(0)
+        #os.kill(os.getpid(), signal.SIGINT)
+        return True
+    else:
+        # Should not get here.
+        p("Unexpected situation isConnected[" + isConnected + "] and is_trading_hours[" + isTradingHours + "]")
+        p(msg)
+        exit(0)
+
+    return False
+
+
 def writeQuotesToFile(arg):
     global queues_start_time, contracts
     while True:
@@ -72,18 +108,8 @@ def writeQuotesToFile(arg):
             queues_start_time = datetime.now()
             saveDataInCSV()
 
-        if not ib.isConnected():
-            raise NameError('Lost IB Connection  Exiting thread...')
-            exit(0)
-            # os.kill(os.getpid(), signal.SIGINT)
-        else:
-            if not IBUtil.is_trading_hours():
-                ib.disconnect()
-                exit(0)
-                # os.kill(os.getpid(), signal.SIGINT)
-                raise NameError('Market Closed.  Exiting thread...')
-
-
+        #2nd thread needs to handle this as well.
+        check_IB_conneciton_broke(ib, threading.current_thread().name + ': writeQuotesFile Thread.')
 
 
 def main(configFileName):
@@ -114,41 +140,18 @@ def main(configFileName):
     while True:
         # ib.run(timeout=6)
         ib.sleep(60)  #seconds
-        if not ib.isConnected():
-            p("Lost IB connection. Exiting.")
-            # msg = subject = ""
-            if IBUtil.is_trading_hours():
-                subject = "OptionList4 Lost IB Connection -- business hours"
-                msg = "Oh no.  App crashed during business hours.  Will Restart"
-                output = subprocess.getoutput("~/Development/OptionList4/start.sh")
-                msg += "\n" + output
-            else:
-                subject = " OptionList4 Lost IB Connection -- non business hours"
-                msg = "app crashed during non-business housrs"
-            email_notification =  \
-                "aws sns publish " + \
-                ' --topic-arn "arn:aws:sns:us-east-1:775579389744:notifyMuthu"' + \
-                ' --subject "' + subject + \
-                '" --message "' + msg + '"'
-            p("emailing: ", email_notification)
-            os.system(email_notification)
-            exit(0)
-            # os.kill(os.getpid(), signal.SIGINT)
-            break
-        else:
-            if not IBUtil.is_trading_hours():
-                ib.disconnect()
-                exit(0)
-                # os.kill(os.getpid(), sig  nal.SIGINT)
-                break
+        check_IB_conneciton_broke(ib, threading.current_thread().name + ': Main loop thead.')
         ctr += 1
+
         # Update contracts: Remove old contracts
         new_contracts = IBUtil.get_filtered_contract_list(ib, config, (ctr % 15 == 0))
+
         found_changes = False
         for con in new_contracts:
             if con not in contracts:
                 found_changes = True
                 break
+
         if found_changes:
             p("Found Changes, processing new contract list:")
             pprint(new_contracts)
