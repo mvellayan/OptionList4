@@ -3,16 +3,18 @@ services:
   fb:
     build: .
     image: ol4:latest
-    command: python3 realtime_data_collector.py config/config-fb.json
+    command: python3 realtime_data_collector.py config/config-fb.json >> /logs/fb_log
     restart: always
     volumes:
       - ./IBdata:/IBapp/IBdata
+      - ./logs:/logs
     network_mode: "host"
   aapl:
     build: .
     image: ol4:latest
-    command: python3 realtime_data_collector.py config/config-aapl.json
+    command: python3 realtime_data_collector.py config/config-aapl.json >> /logs/aapl_log
     restart: always
     volumes:
       - ./IBdata:/IBapp/IBdata
+      - ./logs:/logs
     network_mode: "host"
