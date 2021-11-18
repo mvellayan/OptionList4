@@ -1,4 +1,5 @@
 import sys, os, signal
+import subprocess
 from pprint import pprint
 import threading, csv
 from threading import Condition
@@ -115,8 +116,15 @@ def main(configFileName):
         ib.sleep(60)  #seconds
         if not ib.isConnected():
             p("Lost IB connection. Exiting.")
-            subject = " OptionList4 Lost IB Connection"
-            msg = " oh no.  Please restart"
+            # msg = subject = ""
+            if IBUtil.is_trading_hours():
+                subject = "OptionList4 Lost IB Connection -- business hours"
+                msg = "Oh no.  App crashed during business hours.  Will Restart"
+                output = subprocess.getoutput("~/Development/OptionList4/start.sh")
+                msg += "\n" + output
+            else:
+                subject = " OptionList4 Lost IB Connection -- non business hours"
+                msg = "app crashed during non-business housrs"
             email_notification =  \
                 "aws sns publish " + \
                 ' --topic-arn "arn:aws:sns:us-east-1:775579389744:notifyMuthu"' + \
@@ -135,7 +143,7 @@ def main(configFileName):
                 break
         ctr += 1
         # Update contracts: Remove old contracts
-        new_contracts = IBUtil.get_filtered_contract_list(ib, config, (ctr % 5 == 0))
+        new_contracts = IBUtil.get_filtered_contract_list(ib, config, (ctr % 15 == 0))
         found_changes = False
         for con in new_contracts:
             if con not in contracts:
