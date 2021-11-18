@@ -112,9 +112,18 @@ def main(configFileName):
     ctr = 0
     while True:
         # ib.run(timeout=6)
-        ib.sleep(60)
+        ib.sleep(60)  #seconds
         if not ib.isConnected():
             p("Lost IB connection. Exiting.")
+            subject = " OptionList4 Lost IB Connection"
+            msg = " oh no.  Please restart"
+            email_notification =  \
+                "aws sns publish " + \
+                ' --topic-arn "arn:aws:sns:us-east-1:775579389744:notifyMuthu"' + \
+                ' --subject "' + subject + \
+                '" --message "' + msg + '"'
+            p("emailing: ", email_notification)
+            os.system(email_notification)
             exit(0)
             # os.kill(os.getpid(), signal.SIGINT)
             break
@@ -122,7 +131,7 @@ def main(configFileName):
             if not IBUtil.is_trading_hours():
                 ib.disconnect()
                 exit(0)
-                # os.kill(os.getpid(), signal.SIGINT)
+                # os.kill(os.getpid(), sig  nal.SIGINT)
                 break
         ctr += 1
         # Update contracts: Remove old contracts
@@ -152,9 +161,9 @@ def main(configFileName):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        p("\n\nUsage: collect_data.py <config_file.yml>\n\n")
+        p("\t\tUsage: collect_data.py <config_file.yml>\n\n")
         sys.exit(0)
     else:
-        p("using config file [" + sys.argv[1] + "]")
+        p("\tusing config file [" + sys.argv[1] + "]")
 
     main(sys.argv[1])
