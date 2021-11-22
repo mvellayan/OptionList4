@@ -63,14 +63,20 @@ def makeDirectory(fileName):
                 p(exc)
                 #raise
 
+stock_quote_cache = {}
 def get_quote_with_delta(stockQuotes, quoteTime: datetime, delta: int):
-    last = None
+    global stock_quote_cache
+    lastTrade = None
     for iter in range(3):
-        df = stockQuotes.query("Time == " + dateAdd(quoteTime, seconds=(delta+iter)))
+        newDate = dateAdd(quoteTime, seconds=(delta+iter))
+        lastTrade = stock_quote_cache.get(newDate, -1)
+        if lastTrade > -1: return lastTrade
+        df = stockQuotes.query("Time == " + newDate)
         if df.shape[0] > 0:
-            last = df["Last"].iloc[0]
+            stock_quote_cache[newDate] = lastTrade
+            lastTrade = df["Last"].iloc[0]
             break
-    return last
+    return lastTrade
 
 
 def dateAdd(inDate: datetime, minutes: int = 0, seconds: int = 0):
