@@ -1,3 +1,4 @@
+import shutil
 from datetime import datetime, timedelta, date
 import glob, sys, os
 import pandas as pd
@@ -7,9 +8,10 @@ from timeit import default_timer as timer
 from datetime import timedelta
 
 from utils import FileUtil, IBUtil
-from utils.FileUtil import p
+from utils.FileUtil import p, makeDirectory, unzip_file, get_sec_to_expire
 
 pdOptionList: pd.DataFrame = None     # Data Frame all options Contracts for the symbol
+pdOptionList3wC: pd.DataFrame = None     # 3 week calls only
 pdStockQuotes: pd.DataFrame = None    # Data Frame all date/time quotes for the symbol
 pdOptionQuotes: pd.DataFrame = None   # Data Frame all date/time quotes for all options
 pdOptionQuotesIdx = {}
@@ -25,9 +27,9 @@ def buildIndex(index_col, quoteTime, conId):
 
 
 def expandX(quoteTime, conId, quoteLast):
-    global config, pdStockQuotes, pdOptionList, pdOptionQuotes
+    global config, pdStockQuotes, pdOptionList, pdOptionList3wC, pdOptionQuotes
     global running_total, running_missing, total_lookup, expiryList
-    contractList = IBUtil.filter_option_list(expiryList, quoteLast, pdOptionList, strikeBox=3)
+    contractList = IBUtil.filter_option_list(expiryList, quoteLast, pdOptionList3wC, strikeBox=3)
     # pprint (list)
     listLabel = ["c_w1_n3", "c_w1_n2", "c_w1_n1", "c_w1_p1", "c_w1_p2", "c_w1_p3",
                  "c_w2_n3", "c_w2_n2", "c_w2_n1", "c_w2_p1", "c_w2_p2", "c_w2_p3",
@@ -35,14 +37,14 @@ def expandX(quoteTime, conId, quoteLast):
     retDict = {}
     index = 0
     retDict["Time"] = quoteTime
-
-    retDict["p0"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteTime, 0)
-    retDict["p15s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteTime, 15)
-    retDict["p30s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteTime, 30)
-    retDict["p60s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteTime, 60)
-    retDict["p300s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteTime, 300)
-    retDict["p600s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteTime, 600)
-    retDict["p900s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteTime, 900)
+    quoteDateObj = FileUtil.getDateObjFromStr(quoteTime)
+    retDict["p0"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 0)
+    retDict["p15s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 15)
+    retDict["p30s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 30)
+    retDict["p60s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 60)
+    retDict["p300s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 300)
+    retDict["p600s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 600)
+    retDict["p900s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 900)
 
     for contract in contractList:
         running_total += 1
@@ -59,6 +61,13 @@ def expandX(quoteTime, conId, quoteLast):
         else:
             # print ( idx, pdOptionQuotes.shape )
             res = pdOptionQuotes.loc[idx]
+
+            tv = None
+            tv = ((res["Ask"] + res["Bid"])/2) - (quoteLast - contract.strike)
+            dur = get_sec_to_expire(
+                FileUtil.getDateObjFromStr(quoteTime),
+                FileUtil.getDateObjFromStr(contract.lastTradeDateOrContractMonth,'YYYYMMDD'))
+            theta = (tv / dur) * 100 * 1000 # 100 = cents, 100 = basis point
             retDict[listLabel[index] + "_" + "Ask"] = res["Ask"]
             retDict[listLabel[index] + "_" + "AskSize"] = res["AskSize"]
             retDict[listLabel[index] + "_" + "Bid"] = res["Bid"]
@@ -67,23 +76,28 @@ def expandX(quoteTime, conId, quoteLast):
             retDict[listLabel[index] + "_" + "LastSize"] = res["LastSize"]
             retDict[listLabel[index] + "_" + "strike"] = contract.strike
             retDict[listLabel[index] + "_" + "strikeDelta"] = quoteLast - contract.strike
+            retDict[listLabel[index] + "_" + "timeValue"] = tv
+            retDict[listLabel[index] + "_" + "theta"] = theta
             retDict[listLabel[index] + "_" + "impliedVolatility"] = res["impliedVolatility"]
         index += 1
 
     return retDict
 
-
 def loadBasicData(startingDir):
-    global config, pdStockQuotes, pdOptionList, pdOptionQuotes
-    global expiryList
-    # 1. get stock symbol
+    global config, pdStockQuotes, pdOptionList, pdOptionList3wC, pdOptionQuotes, expiryList
     symbol = config["stock"]
+    zipFilename = startingDir + "/" + symbol + ".zip"
+    startingDirOrig = startingDir
+    createdTmpDir = False
 
-    # 2. Read Each OptionList Files to Panda.
-    for file in glob.glob(startingDir + "/" + symbol + "*optionList*csv"):
-        pdOptionList = pd.read_csv(file)
+    # 1 is there is a zip file?  If so unzip & use tmp dir
+    if os.path.exists(zipFilename):
+        createdTmpDir = True
+        startingDir = startingDir + "/" + FileUtil.getDateTimeStamp(1)
+        os.makedirs(startingDir, exist_ok=True)
+        unzip_file(startingDir, zipFilename)
 
-    # 3. Read All StockQuotes Files to single Panda
+    # 2. Load pdStockQuotes -- Stock Quotes
     for file in glob.glob(startingDir + "/" + symbol + "_" + "*csv"):
         curPd = pd.read_csv(file)
         # Store only 9:25 to 16:10 data for quotes
@@ -100,14 +114,18 @@ def loadBasicData(startingDir):
     else:
         p("Found [", pdStockQuotes.shape, "] stocks rows.")
 
-    # print(pdStockQuotes[['Time']].values[0][0])
-    quoteTime: int = pdStockQuotes[['Time']].values[0][0]
-    quoteTimeStr = str(quoteTime)
-    # parse this: 20211105105959
-    quoteTimeDate = FileUtil.getDateObj(quoteTimeStr)
-    expiryList = IBUtil.get_expiry_list(quoteTimeDate, 3)
+    # 3. Load variable : expiryList
+    expiryList = IBUtil.get_expiry_list(pdStockQuotes[['Time']].values[0][0], 3)
 
-    # 3. Read All OptionsQuotes Files to single Panda
+    # 4. Load pdOptionList -- options List
+    for file in glob.glob(startingDir + "/" + symbol + "*optionList*csv"):
+        pdOptionList = pd.read_csv(file)
+
+    # 4.b load pdOptionList3wC
+    pdOptionList3wC = pdOptionList[pdOptionList['right'] == 'C']
+    pdOptionList3wC = pdOptionList3wC[pdOptionList3wC['lastTradeDateOrContractMonth'] <= expiryList[-1]]
+
+    # 5. Load pdOptionQuotes -- Options Quotes
     for file in glob.glob(startingDir + "/" + symbol + "2" + "*csv"):
         curPd = pd.read_csv(file)
         # Store only 9:25 to 16:10 data for quotes
@@ -117,6 +135,18 @@ def loadBasicData(startingDir):
         else:
             pdOptionQuotes = pdOptionQuotes.append(curPd, ignore_index=True)
 
+    # 6. Cleanup
+    if createdTmpDir:
+        # 6a. For zip file delete temp dir
+        try:
+            shutil.rmtree(startingDir)
+        except OSError as e:
+            print("Error: %s : %s" % (startingDir, e.strerror))
+    else:
+        # 6b. loose files, zip it up
+        FileUtil.zip_and_delete(startingDir, config["stock"])
+
+    # 7. Done!!
     return True
 
 
@@ -147,7 +177,7 @@ def main(dirName):
     p(" Starting Joining")
     projection = pdStockQuotes.merge(df, on="Time", how="outer")
 
-    outfile = dirName + "/projection_stock_call_options.csv"
+    outfile = dirName + "/projection_stock_call_options_" + config["stock"] + ".csv"
     p(" Writing to File [", outfile, "]")
     projection.to_csv(outfile)
 
@@ -163,8 +193,10 @@ if __name__ == "__main__":
         p("using config file [" + sys.argv[1] + "]")
 
     config = FileUtil.readConfig(sys.argv[1])
-    for directory in os.walk("IBdata/"):
-        for files in directory[2]:
-            if config["stock"] + 'optionList' in files:
-                p("In main loop.  Found/Processing directory: ", directory[0])
-                main(directory[0])
+
+    main("/Users/Muthu/Development/OptionList4/IBdata/2021/11/18")
+    # for directory in os.walk("IBdata/"):
+    #     for files in directory[2]:
+    #         if config["stock"] + 'optionList' in files:
+    #             p("In main loop.  Found/Processing directory: ", directory[0])
+    #             main(directory[0])

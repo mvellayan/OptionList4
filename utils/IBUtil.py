@@ -1,10 +1,14 @@
 import math
 import os
+
+import numpy
 import pytz
 from datetime import datetime, timedelta
 
 import pandas as pd
 from ib_insync import *
+
+from utils import FileUtil
 from utils.FileUtil import makeDataFileName, p
 
 
@@ -147,8 +151,21 @@ class MarketData:
             self.impliedVolatility = ticker.impliedVolatility
 
 
-def get_expiry_list(quoteTimeDate: datetime, noWeeks: int):
+def get_expiry_list(quoteTimeDate, noWeeks: int):
+
     expiryListArr = []
+
+    if type(quoteTimeDate) == numpy.int64:
+        quoteTime: int = quoteTimeDate
+        quoteTimeStr = str(quoteTime)
+        # parse this: 20211105105959
+        quoteTimeDate = FileUtil.getDateObjFromStr(quoteTimeStr)
+    elif type(quoteTimeDate) == datetime:
+        pass
+    else:
+        p("Unexpected data type for quoteTime: " + type(quoteTimeDate))
+        sys.exit(1)
+
     wDate = quoteTimeDate
     for i in range(noWeeks):
         wDate = wDate + timedelta((4 - wDate.weekday()) % 7)
