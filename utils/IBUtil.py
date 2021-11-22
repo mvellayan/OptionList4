@@ -11,6 +11,7 @@ from ib_insync import *
 from utils import FileUtil
 from utils.FileUtil import makeDataFileName, p
 
+filter_option_list_cache = {}
 
 def pull_options_list(ib, config):
 
@@ -70,8 +71,12 @@ def get_filtered_contract_list(ib, config, force_pull=False): # -> "[] of stock 
     retArray += filter_option_list(expiryList, data.last, optionList, config["strikeBox"])
     return retArray
 
-
 def filter_option_list(expiryList, quoteAmt: float, df, strikeBox: int):
+    global filter_option_list_cache
+
+    cache_value = filter_option_list_cache.get(quoteAmt, None)
+    if cache_value is not None:
+        return cache_value
 
     retArray = []
     df_res = None
@@ -110,6 +115,7 @@ def filter_option_list(expiryList, quoteAmt: float, df, strikeBox: int):
                                  df_res["lastTradeDateOrContractMonth"][ind]))
     # p('\n Summary: Above Strike (', df_res.shape, ') \n')
 
+    filter_option_list_cache[quoteAmt] = retArray
     return retArray
 
 
