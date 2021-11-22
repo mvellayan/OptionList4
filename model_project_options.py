@@ -13,7 +13,6 @@ from utils.FileUtil import p, makeDirectory, unzip_file, get_sec_to_expire
 pdOptionList: pd.DataFrame = None     # Data Frame all options Contracts for the symbol
 pdOptionList3wC: pd.DataFrame = None     # 3 week calls only
 pdStockQuotes: pd.DataFrame = None    # Data Frame all date/time quotes for the symbol
-pdOptionQuotes: pd.DataFrame = None   # Data Frame all date/time quotes for all options
 pdOptionQuotesIdx = {}
 config = {}                      # parameter config object
 expiryList = []                 # list of expiry we are interested in for the given date
@@ -21,13 +20,9 @@ running_missing = 0
 running_total = 0
 total_lookup = 0
 
-def buildIndex(index_col, quoteTime, conId):
-    pdOptionQuotesIdx[str(conId) + ":" + str(quoteTime)] = index_col
-    # print("Loading- " + str(conId) + ":" + str(quoteTime) + " => " + str(index_col))
-
 
 def expandX(quoteTime, conId, quoteLast):
-    global config, pdStockQuotes, pdOptionList, pdOptionList3wC, pdOptionQuotes
+    global config, pdStockQuotes, pdOptionList, pdOptionList3wC, pdOptionQuotesIdx
     global running_total, running_missing, total_lookup, expiryList
     contractList = IBUtil.filter_option_list(expiryList, quoteLast, pdOptionList3wC, strikeBox=3)
     # pprint (list)
@@ -49,6 +44,10 @@ def expandX(quoteTime, conId, quoteLast):
     for contract in contractList:
         running_total += 1
         # approach 2
+        ### print (contract)
+        ### hash_idx = str(row.ConId) + ":" + str(row.Time)
+        ### print(index, '->', row, '==>', hash_idx)
+
         idx = pdOptionQuotesIdx.get(str(contract.conId) + ":" + str(quoteTime))
         # print("<<<<<<<<- " + str(conId) + ":" + str(quoteTime) + " => " + str(idx))
 
@@ -59,8 +58,7 @@ def expandX(quoteTime, conId, quoteLast):
                       running_total, "/", total_lookup, round(running_total/total_lookup, 4), '% ]:',
                       str(conId) + ":" + str(quoteTime), "Missing")
         else:
-            # print ( idx, pdOptionQuotes.shape )
-            res = pdOptionQuotes.loc[idx]
+            res = idx
 
             tv = None
             tv = ((res["Ask"] + res["Bid"])/2) - (quoteLast - contract.strike)
@@ -84,7 +82,7 @@ def expandX(quoteTime, conId, quoteLast):
     return retDict
 
 def loadBasicData(startingDir):
-    global config, pdStockQuotes, pdOptionList, pdOptionList3wC, pdOptionQuotes, expiryList
+    global config, pdStockQuotes, pdOptionList, pdOptionList3wC, pdOptionQuotesIdx, expiryList
     symbol = config["stock"]
     zipFilename = startingDir + "/" + symbol + ".zip"
     startingDirOrig = startingDir
@@ -122,18 +120,20 @@ def loadBasicData(startingDir):
         pdOptionList = pd.read_csv(file)
 
     # 4.b load pdOptionList3wC
+    # filtering now for performance improvement.
     pdOptionList3wC = pdOptionList[pdOptionList['right'] == 'C']
     pdOptionList3wC = pdOptionList3wC[pdOptionList3wC['lastTradeDateOrContractMonth'] <= expiryList[-1]]
 
-    # 5. Load pdOptionQuotes -- Options Quotes
+    # 5. Load pdOptionQuotesIdx -- Options Quotes
     for file in glob.glob(startingDir + "/" + symbol + "2" + "*csv"):
         curPd = pd.read_csv(file)
         # Store only 9:25 to 16:10 data for quotes
         curPd = curPd[(curPd['Time'] % 1000000).between(92500, 161000)]
-        if pdOptionQuotes is None:
-            pdOptionQuotes = curPd
-        else:
-            pdOptionQuotes = pdOptionQuotes.append(curPd, ignore_index=True)
+        for index, row in curPd.iterrows():
+            hash_idx = str(row.ConId) + ":" + str(row.Time)
+            # print (index, '->', row, '==>', hash_idx)
+            pdOptionQuotesIdx[hash_idx] = row
+
 
     # 6. Cleanup
     if createdTmpDir:
@@ -151,7 +151,7 @@ def loadBasicData(startingDir):
 
 
 def main(dirName):
-    global pdStockQuotes, pdOptionList, pdOptionQuotes
+    global pdStockQuotes, pdOptionList, pdOptionQuotesIdx
     global running_missing, running_total, total_lookup
 
     if not loadBasicData(dirName):
@@ -161,14 +161,11 @@ def main(dirName):
     running_total = running_missing = 0
     total_lookup = len(pdStockQuotes) * 18
 
-    # perform index
-    pdOptionQuotes['index_col'] = pdOptionQuotes.index
-    # print(pdOptionQuotes[['index_col', 'ConId', 'Time']])
-    pdOptionQuotes.apply(lambda y: buildIndex(y['index_col'], y['Time'], y['ConId']), axis=1, result_type='expand')
-
     # Section
     start = timer()
+    pdStockQuotes = pdStockQuotes.head(1000)
     df = pdStockQuotes.apply(lambda x: expandX(x['Time'], x['ConId'], x['Last']), axis=1, result_type='expand')
+
     df.set_index('Time')
     end = timer()
     p("TIME: Projecting: ",  timedelta(seconds=end - start))
@@ -179,7 +176,7 @@ def main(dirName):
 
     outfile = dirName + "/projection_stock_call_options_" + config["stock"] + ".csv"
     p(" Writing to File [", outfile, "]")
-    projection.to_csv(outfile)
+    projection.to_csv(outfile, float_format='%.6f')
 
     p("Done!")
 
