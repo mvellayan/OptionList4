@@ -66,6 +66,7 @@ def expandX(quoteTime, conId, quoteLast):
                 FileUtil.getDateObjFromStr(quoteTime),
                 FileUtil.getDateObjFromStr(contract.lastTradeDateOrContractMonth,'YYYYMMDD'))
             theta = (tv / dur) * 100 * 1000 # 100 = cents, 100 = basis point
+            retDict[listLabel[index] + "_" + "Symbol"] = res["Symbol"]
             retDict[listLabel[index] + "_" + "Ask"] = res["Ask"]
             retDict[listLabel[index] + "_" + "AskSize"] = res["AskSize"]
             retDict[listLabel[index] + "_" + "Bid"] = res["Bid"]
@@ -163,7 +164,7 @@ def main(dirName):
 
     # Section
     start = timer()
-    pdStockQuotes = pdStockQuotes.head(1000)
+    # pdStockQuotes = pdStockQuotes.head(1000)
     df = pdStockQuotes.apply(lambda x: expandX(x['Time'], x['ConId'], x['Last']), axis=1, result_type='expand')
 
     df.set_index('Time')
