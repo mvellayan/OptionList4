@@ -190,7 +190,7 @@ if __name__ == "__main__":
         print("\tusing config file [" + sys.argv[1] + "]")
 
     config = FileUtil.readConfig(sys.argv[1])
-    log = setup_logging("logs/" + config["stock"] + "realtime_data_collector.log")
+    log = setup_logging("/logs/" + config["stock"] + "realtime_data_collector.log")
 
     FileUtil.setLog(log)
     IBUtil.setLog(log)
