@@ -9,9 +9,8 @@ import pandas as pd
 from ib_insync import *
 
 from utils import FileUtil
-from utils.FileUtil import makeDataFileName, p
-
-filter_option_list_cache = {}
+from utils.FileUtil import makeDataFileName, setup_logging
+global log
 
 def pull_options_list(ib, config):
 
@@ -32,17 +31,17 @@ def pull_options_list(ib, config):
     fileName = get_options_list_file_name(config)
     # if file exists, move it
     if os.path.exists(fileName):
-        p("File already exists [" + fileName + "]")
+        log.info("File already exists [" + fileName + "]")
         newFileName = fileName + "_" + datetime.now().strftime("%H%M%S")
-        p("Moving it to timestamp file: " + newFileName)
+        log.info("Moving it to timestamp file: " + newFileName)
         os.rename(fileName, newFileName)
 
     df.to_csv(fileName)
-    p("Option Contracts written to file [", fileName, "]")
+    log.info("Option Contracts written to file [" + fileName + "]")
 
 
 def get_filtered_contract_list(ib, config, force_pull=False): # -> "[] of stock and option contracts to pull"
-
+    global log
     retArray = []  #array of contracts
 
     stk = Contract(symbol=config["stock"], secType="STK", exchange="SMART",
@@ -51,10 +50,10 @@ def get_filtered_contract_list(ib, config, force_pull=False): # -> "[] of stock 
 
     fileName = get_options_list_file_name(config)
     if (not os.path.exists(fileName)) or force_pull:
-        p("Creating new file: [", fileName, "]")
+        log.info("Creating new file: [" + fileName + "]")
         pull_options_list(ib, config)
     else:
-        p("OptionsList file found.  Using [", fileName, "]")
+        log.info("OptionsList file found.  Using [" + fileName + "]")
     optionList = pd.read_csv(fileName)
 
     #get last price
@@ -64,13 +63,15 @@ def get_filtered_contract_list(ib, config, force_pull=False): # -> "[] of stock 
         ib.sleep(0.01)  # Wait until data is in.
     # ib.cancelMktData(42)
     #p(data)
-    p("\nUsing last quote:", data.last)
+    log.info("Using last quote:")
+    log.info(data.last)
 
     # expiryList, quoteLast, optionList, strikeBox=3)
     expiryList = get_expiry_list(datetime.now(), config["weeksOut"])
     retArray += filter_option_list(expiryList, data.last, optionList, config["strikeBox"])
     return retArray
 
+filter_option_list_cache = {}
 def filter_option_list(expiryList, quoteAmt: float, df, strikeBox: int):
     global filter_option_list_cache
 
@@ -119,13 +120,14 @@ def filter_option_list(expiryList, quoteAmt: float, df, strikeBox: int):
     return retArray
 
 
-def is_trading_hours():
-    now = datetime.now()
+def is_trading_hours(now=datetime.now()):
     hour = int(now.astimezone(pytz.timezone('US/Eastern')).strftime("%H"))
-    if hour in range(9, 16): # checking hours for now
+    day_of_week = now.weekday()
+    if hour in range(9, 17) and day_of_week in range(0, 5): # checking hours and trading date
         return True
     else:
-        p("\t\t Non-trading hour.[", hour, "] Can't get realtime data. ", now)
+        log.info("Non-trading hour.[" + str (hour) +  "] Can't get realtime data. ")
+        log.info(now)
         return False
 
 
@@ -169,7 +171,8 @@ def get_expiry_list(quoteTimeDate, noWeeks: int):
     elif type(quoteTimeDate) == datetime:
         pass
     else:
-        p("Unexpected data type for quoteTime: " + type(quoteTimeDate))
+        log.info("Unexpected data type for quoteTime: ")
+        log.info(type(quoteTimeDate))
         sys.exit(1)
 
     wDate = quoteTimeDate
@@ -178,3 +181,9 @@ def get_expiry_list(quoteTimeDate, noWeeks: int):
         expiryListArr.append(int(wDate.strftime("%Y%m%d")))
         wDate = wDate + timedelta(days=1)
     return expiryListArr
+
+
+if __name__ == "__main__":
+    global log
+    log = setup_logging("IBUtil.log")
+    log.info( is_trading_hours())

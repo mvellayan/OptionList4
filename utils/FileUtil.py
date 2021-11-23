@@ -3,13 +3,14 @@ import json
 import os
 import re
 import zipfile
+import logging
+from logging.handlers import RotatingFileHandler
+
 import numpy as np
 from datetime import datetime, timedelta
 
 from ib_insync import *
-
-def p(*args):
-    print(datetime.now().strftime("%Y%m%d %H:%M:%S") + ": ", *args)
+log = None
 
 def readConfig(fileName):
     data = {}
@@ -21,7 +22,7 @@ def readConfig(fileName):
         # pprint(data)
         f.close()
     except OSError:
-        p('cannot open file', fileName)
+        log.error('cannot open file', fileName)
         sys.exit(1)
     # verify fields exist
     # print("\nINFO: parameters Check:")
@@ -31,7 +32,7 @@ def readConfig(fileName):
     x = data["stock"]
     x = data["weeksOut"]
     x = data["strikeBox"]
-    p("\n")
+    log.info("\n")
     return data
 
 
@@ -52,15 +53,14 @@ def makeDataFileName(inputFileName, addTimestamp=True):
 
 
 def makeDirectory(fileName):
-    print (os.path.dirname(fileName))
-    print (os.path.exists(os.path.dirname(fileName)))
+    log.info(os.path.dirname(fileName))
+    log.info(os.path.exists(os.path.dirname(fileName)))
     if True or (not os.path.exists(os.path.dirname(fileName))):
         try:
             os.makedirs(os.path.dirname(fileName), exist_ok=True)
         except OSError as exc:  # Guard against race condition
             if exc.errno != errno.EEXIST:
-                p("ERROR")
-                p(exc)
+                log.error(exc)
                 #raise
 
 stock_quote_cache = {}
@@ -95,7 +95,7 @@ def getDateObjFromStr(inTime, in_format="YYYYMMDDHHMMSS"):
     if in_format == "YYYYMMDD":
         return datetime(int(inTime[0:4]), int(inTime[4:6]),
                     int(inTime[6:8]))
-    p("Unexpected in format: ", in_format)
+    log.error("Unexpected in format: ", in_format)
     assert False
 
 
@@ -127,7 +127,7 @@ def zip_and_delete(directory, file_prefix):
                     zf.write(name2, name)
                     os.remove(directory + "/" + name)
                 else:
-                    print("Skipping file: " + name)
+                    log.info("Skipping file: " + name)
     os.chdir(cwd)
 
 
@@ -150,7 +150,7 @@ def getDateTimeStamp(format_type=1):
         return now.__str__()[:10].replace(":", '').replace(".", '')\
             .replace("-", '').replace("-", '').replace(" ", '')
     else:
-        p("Unexpected.  Assumption violation")
+        log.error("Unexpected.  Assumption violation")
         sys.exit(0)
 
 
@@ -186,29 +186,34 @@ def unit_test():
 
     msg = "Simple Test, how many seconds left in trading day after 12:30 PM"
     x = get_sec_to_4pm(getDateObjFromStr("20211119123000"))
-    print(msg, x)
+    log.info(msg)
+    log.info(x)
     assert 12600 == x, msg
 
 
     msg =  "2 dates, seconds to expire, after close  16 30 00  to same date 2021 11 19 12 30 00 (converted to 4pm)"
     x = get_sec_to_expire(getDateObjFromStr("20211119163000"), getDateObjFromStr("20211119123000"))
-    print(msg, x)
+    log.info(msg)
+    log.info(x)
     assert 0 == x, msg
 
 
     msg =  "Same day before open  08 30 00  to 2021 11 19 12 30 00 (end is convert to 4 pm)"
     x = get_sec_to_expire(getDateObjFromStr("20211119083000"), getDateObjFromStr("20211119123000"))
-    print(msg, x)
+    log.info(msg)
+    log.info(x)
     assert 23400 == x
 
     msg =  "Same day before open  08 30 00  to 2021 11 17 12 30 00 (end is convert to 4 pm)"
     x = get_sec_to_expire(getDateObjFromStr("20211117083000"), getDateObjFromStr("20211119123000"))
-    print(msg, x)
+    log.info(msg)
+    log.info(x)
     assert 3*23400 == x
 
     msg = "Not counting sat & sun"
     x = get_sec_to_expire(getDateObjFromStr("20211117083000"), getDateObjFromStr("20211121123000"))
-    print(msg, x)
+    log.info(msg)
+    log.info(x)
     assert 3*23400 == x
 
     msg = "Testing everyday of the week"
@@ -223,5 +228,21 @@ def unit_test():
     assert 6*23400 == get_sec_to_expire(getDateObjFromStr("20211114083000"), getDateObjFromStr("20211122123000"))
 
 
+def setup_logging(fn="py-log.log", size=1000000):
+    global log
+    # logging.basicConfig(filename="../logs/"+fn, format='%(asctime)s-%(threadName)s-%(levelname)s: %(message)s')
+    logging.basicConfig(handlers=[RotatingFileHandler(fn, maxBytes=size, backupCount=3)],
+                        level=logging.DEBUG,
+                        format="[%(asctime)s] %(threadName)s %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s",
+                        datefmt='%Y-%m-%dT%H:%M:%S')
+
+    log = logging.getLogger()
+    log.setLevel(logging.INFO)
+#   log.propagate = False
+    return log
+
+
 if __name__ == "__main__":
+    setup_logging("FileUtil.log")
     unit_test()
+    pass

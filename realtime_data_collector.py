@@ -6,6 +6,7 @@ import threading, csv
 from threading import Condition
 import time
 from datetime import datetime
+import logging
 
 import pytz
 from ib_insync import *
@@ -14,7 +15,7 @@ from utils import FileUtil, IBUtil
 
 #
 # see: https://github.com/erdewit/ib_insync
-from utils.FileUtil import p
+from utils.FileUtil import setup_logging
 
 queues = {}
 queues_start_time = datetime.now()
@@ -22,6 +23,7 @@ config = {}
 condition = Condition()
 ib = IB() # IB connection
 contracts = [] #array of contracts we are trackng
+global log
 
 
 def onPendingTicker(tickers):
@@ -72,7 +74,7 @@ def check_IB_conneciton_broke(ib, msg: str):
         return False
     elif ((not isConnected) and isTradingHours):
         subject = "Lost connection during trading hours.  Will Restart"
-        p(subject, msg)
+        log.info(subject + "," + msg)
         output = subprocess.getoutput("~/Development/OptionList4/start.sh")
         msg += "\nRestart results:\n" + output
         email_notification = \
@@ -80,11 +82,11 @@ def check_IB_conneciton_broke(ib, msg: str):
             ' --topic-arn "arn:aws:sns:us-east-1:775579389744:notifyMuthu"' + \
             ' --subject "' + subject + \
             '" --message "' + msg + '"'
-        p("emailing command: ", email_notification)
+        log.info("emailing command: " + email_notification)
         os.system(email_notification)
         exit(0)
     elif not isTradingHours:
-        p("Not trading hours.  Stopping. " + msg)
+        log.info("Not trading hours.  Stopping. " + msg)
         if isConnected:
             ib.disconnect()
         exit(0)
@@ -92,8 +94,11 @@ def check_IB_conneciton_broke(ib, msg: str):
         return True
     else:
         # Should not get here.
-        p("Unexpected situation isConnected[" + isConnected + "] and is_trading_hours[" + isTradingHours + "]")
-        p(msg)
+        log.info("Unexpected situation isConnected[")
+        log.inof(isConnected)
+        log.infor("] and is_trading_hours[")
+        log.info(isTradingHours)
+        log.info(msg)
         exit(0)
 
     return False
@@ -104,7 +109,7 @@ def writeQuotesToFile(arg):
     while True:
         time.sleep(60) # Sleep 1 minute
         if (datetime.now() - queues_start_time).total_seconds() >= config["file_flush_seconds"]:
-            p("Writing to file.")
+            log.info("Writing to file.")
             queues_start_time = datetime.now()
             saveDataInCSV()
 
@@ -119,14 +124,16 @@ def main(configFileName):
     writeThread = threading.Thread(target=writeQuotesToFile, args=(1,))
     writeThread.start()
 
-    p("Connecting to ip [", config["tws_host"], "] port[", config["tws_port"], "] clientId [", config["tws_port"], "]")
+    log.info("Connecting to ip [" + config["tws_host"] + "] port[" + str(config["tws_port"])
+             + "] clientId [" + str(config["tws_port"]) + "]")
     try:
         ib.connect(config["tws_host"], config["tws_port"], clientId=config["tws_port"])
     except BaseException as err:
-        p(f"Unexpected {err=}, {type(err)=}")
+        log.error(f"Unexpected Error")
+        log.error(err)
         raise NameError("Cannot connect to IB")
 
-    p("Connection Status: ", ib.isConnected())
+    log.info("Connection Status: " + str(ib.isConnected()))
 
     contracts = IBUtil.get_filtered_contract_list(ib, config)
     pprint(contracts)
@@ -153,28 +160,37 @@ def main(configFileName):
                 break
 
         if found_changes:
-            p("Found Changes, processing new contract list:")
+            log.info("Found Changes, processing new contract list:")
             pprint(new_contracts)
             # Update contracts: Remove old contracts not in new list
             for con in contracts:
                 if con not in new_contracts:
-                    p("removing contract:", con)
+                    log.info("removing contract:")
+                    log.info(con)
                     ib.cancelMktData(con)
             # Update contracts: add new contracts not in old list
             for con in new_contracts:
                 if con not in contracts:
-                    p("adding contract:", con)
+                    log.info("adding contract:")
+                    log.info(con)
                     ib.reqMktData(con, '100,104,106', False, False)
             contracts = new_contracts
         else:
-            p("No changes detected.  Using the same contract list")
+            log.info("No changes detected.  Using the same contract list")
 
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        p("\t\tUsage: collect_data.py <config_file.yml>\n\n")
+        print("\t\tUsage: collect_data.py <config_file.yml>\n\n")
         sys.exit(0)
     else:
-        p("\tusing config file [" + sys.argv[1] + "]")
+        print("\tusing config file [" + sys.argv[1] + "]")
+
+    global log
+    log = setup_logging("logs/realtime_data_collector.log")
+
+    log.info("Starting with arguments: ")
+    log.info(sys.argv)
+    FileUtil.setup_logging('data-collection.log')
 
     main(sys.argv[1])
