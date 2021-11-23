@@ -2,6 +2,7 @@ import os
 import sys
 import subprocess
 from pprint import pprint
+from pprint import pformat
 import threading, csv
 from threading import Condition
 import time
@@ -19,11 +20,10 @@ from utils.FileUtil import setup_logging
 
 queues = {}
 queues_start_time = datetime.now()
-config = {}
 condition = Condition()
 ib = IB() # IB connection
 contracts = [] #array of contracts we are trackng
-global log
+global log, config
 
 
 def onPendingTicker(tickers):
@@ -49,13 +49,15 @@ def saveDataInCSV():
               'Last', 'LastSize', 'Volume', 'histVolatility', 'impliedVolatility']
     for symbol in queues:
         queue = queues.get(symbol)
-        #p(symbol, "->")
-        #p(queue)
+        out_file = FileUtil.makeDataFileName(symbol)
+        out_file_exists = os.path.exists(out_file)
+        log.info("Saving [" + symbol + "] rows to file [" + out_file + "] row-count [" + str(len(queue))+ "]")
         if len(queue) == 0:
             break
-        with open(FileUtil.makeDataFileName(symbol), 'w', encoding='UTF8', newline='') as f:
+        with open(out_file, 'a', encoding='UTF8', newline='') as f:
             writer = csv.writer(f)
-            writer.writerow(header)
+            if not out_file_exists:
+                writer.writerow(header)
             for timeStamp in queue:
                 tkr = queue.get(timeStamp)
                 quoteTime = tkr.quoteTime.astimezone(pytz.timezone('US/Eastern')).strftime("%Y%m%d%H%M%S")
@@ -109,7 +111,7 @@ def writeQuotesToFile(arg):
     while True:
         time.sleep(60) # Sleep 1 minute
         if (datetime.now() - queues_start_time).total_seconds() >= config["file_flush_seconds"]:
-            log.info("Writing to file.")
+            log.info("writeQuotesToFile for " + config["stock"])
             queues_start_time = datetime.now()
             saveDataInCSV()
 
@@ -137,6 +139,7 @@ def main(configFileName):
 
     contracts = IBUtil.get_filtered_contract_list(ib, config)
     pprint(contracts)
+    log.info(pformat(contracts))
     for con in contracts:
         ib.reqMktData(con, '100,104,106', False, False)
     ib.sleep(2)
@@ -162,6 +165,7 @@ def main(configFileName):
         if found_changes:
             log.info("Found Changes, processing new contract list:")
             pprint(new_contracts)
+            log.info(pformat(contracts))
             # Update contracts: Remove old contracts not in new list
             for con in contracts:
                 if con not in new_contracts:
@@ -178,7 +182,6 @@ def main(configFileName):
         else:
             log.info("No changes detected.  Using the same contract list")
 
-
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("\t\tUsage: collect_data.py <config_file.yml>\n\n")
@@ -186,11 +189,16 @@ if __name__ == "__main__":
     else:
         print("\tusing config file [" + sys.argv[1] + "]")
 
-    global log
-    log = setup_logging("logs/realtime_data_collector.log")
+    config = FileUtil.readConfig(sys.argv[1])
+    log = setup_logging("logs/" + config["stock"] + "realtime_data_collector.log")
 
-    log.info("Starting with arguments: ")
+    FileUtil.setLog(log)
+    IBUtil.setLog(log)
+    log.error("Starting with arguments: ")
     log.info(sys.argv)
     FileUtil.setup_logging('data-collection.log')
 
     main(sys.argv[1])
+
+
+

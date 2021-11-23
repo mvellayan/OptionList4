@@ -10,7 +10,13 @@ from ib_insync import *
 
 from utils import FileUtil
 from utils.FileUtil import makeDataFileName, setup_logging
+
 global log
+
+def setLog(inlog):
+    global log
+    log = inlog
+
 
 def pull_options_list(ib, config):
 
@@ -41,7 +47,6 @@ def pull_options_list(ib, config):
 
 
 def get_filtered_contract_list(ib, config, force_pull=False): # -> "[] of stock and option contracts to pull"
-    global log
     retArray = []  #array of contracts
 
     stk = Contract(symbol=config["stock"], secType="STK", exchange="SMART",
@@ -184,6 +189,6 @@ def get_expiry_list(quoteTimeDate, noWeeks: int):
 
 
 if __name__ == "__main__":
-    global log
     log = setup_logging("IBUtil.log")
     log.info( is_trading_hours())
+

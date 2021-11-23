@@ -10,7 +10,13 @@ import numpy as np
 from datetime import datetime, timedelta
 
 from ib_insync import *
-log = None
+
+global log
+
+def setLog(inlog):
+    global log
+    log = inlog
+
 
 def readConfig(fileName):
     data = {}
@@ -32,7 +38,6 @@ def readConfig(fileName):
     x = data["stock"]
     x = data["weeksOut"]
     x = data["strikeBox"]
-    log.info("\n")
     return data
 
 
@@ -46,7 +51,7 @@ def makeDataFileName(inputFileName, addTimestamp=True):
     outputFileName = ''.join(re.findall('[a-zA-Z0-9]+', inputFileName))
     fileName = "./IBdata/" + year_str + "/" + month_str + "/" + day_str + "/" + outputFileName
     if addTimestamp:
-        fileName += "_"  + year_str + month_str + day_str + "_" + time_str
+        fileName += "_"  + year_str + month_str + day_str # + "_" + time_str
     fileName += '.csv'
     makeDirectory(fileName)
     return fileName
@@ -229,7 +234,6 @@ def unit_test():
 
 
 def setup_logging(fn="py-log.log", size=1000000):
-    global log
     # logging.basicConfig(filename="../logs/"+fn, format='%(asctime)s-%(threadName)s-%(levelname)s: %(message)s')
     logging.basicConfig(handlers=[RotatingFileHandler(fn, maxBytes=size, backupCount=3)],
                         level=logging.DEBUG,
@@ -238,11 +242,12 @@ def setup_logging(fn="py-log.log", size=1000000):
 
     log = logging.getLogger()
     log.setLevel(logging.INFO)
-#   log.propagate = False
+    log.propagate = False
     return log
 
 
 if __name__ == "__main__":
-    setup_logging("FileUtil.log")
+    log = setup_logging("FileUtil.log")
     unit_test()
     pass
+
