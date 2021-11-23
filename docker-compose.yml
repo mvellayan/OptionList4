@@ -1,7 +1,6 @@
 version: "3.9"
 services:
   fb:
-    build: .
     image: ol4:latest
     command: python3 realtime_data_collector.py config/config-fb.json >> /logs/fb_log
 #   restart: always
