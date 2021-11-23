@@ -2,6 +2,10 @@
 FROM centos/python-38-centos7:20210726-fad62e9
 USER root
 
+RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+RUN unzip awscliv2.zip
+RUN ./aws/install
+
 WORKDIR /IBapp/IBdata
 WORKDIR /IBapp
 

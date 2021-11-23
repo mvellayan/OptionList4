@@ -8,13 +8,14 @@ services:
     volumes:
       - ./IBdata:/IBapp/IBdata
       - ./logs:/logs
+      -  ~/.aws/:/opt/app-root/src/.aws
     network_mode: "host"
   aapl:
-    build: .
     image: ol4:latest
     command: python3 realtime_data_collector.py config/config-aapl.json >> /logs/aapl_log
 #   restart: always
     volumes:
       - ./IBdata:/IBapp/IBdata
       - ./logs:/logs
+      -  ~/.aws/:/opt/app-root/src/.aws
     network_mode: "host"
