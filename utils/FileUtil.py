@@ -58,8 +58,8 @@ def makeDataFileName(inputFileName, addTimestamp=True):
 
 
 def makeDirectory(fileName):
-    log.info(os.path.dirname(fileName))
-    log.info(os.path.exists(os.path.dirname(fileName)))
+    # log.info(os.path.dirname(fileName))
+    # log.info(os.path.exists(os.path.dirname(fileName)))
     if True or (not os.path.exists(os.path.dirname(fileName))):
         try:
             os.makedirs(os.path.dirname(fileName), exist_ok=True)
