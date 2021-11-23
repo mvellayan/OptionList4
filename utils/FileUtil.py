@@ -235,6 +235,7 @@ def unit_test():
 
 def setup_logging(fn="py-log.log", size=1000000):
     # logging.basicConfig(filename="../logs/"+fn, format='%(asctime)s-%(threadName)s-%(levelname)s: %(message)s')
+    print ("Loggin to file: ", fn)
     logging.basicConfig(handlers=[RotatingFileHandler(fn, maxBytes=size, backupCount=3)],
                         level=logging.DEBUG,
                         format="[%(asctime)s] %(threadName)s %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s",

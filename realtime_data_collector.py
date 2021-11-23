@@ -196,8 +196,6 @@ if __name__ == "__main__":
     IBUtil.setLog(log)
     log.error("Starting with arguments: ")
     log.info(sys.argv)
-    FileUtil.setup_logging('data-collection.log')
-
     main(sys.argv[1])
 
 
