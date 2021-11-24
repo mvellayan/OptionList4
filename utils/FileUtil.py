@@ -1,4 +1,6 @@
+import sys
 import errno
+import glob
 import json
 import os
 import re
@@ -247,8 +249,26 @@ def setup_logging(fn="py-log.log", size=1000000):
     return log
 
 
+def compressCSVFiles(dir):
+    ctr: int = 0
+    for in_file_name in glob.glob(dir + "/*_*_*.csv"):
+        ctr += 1
+        out_file_name = in_file_name[0: in_file_name.rfind('_')] + ".csv"
+        out_file_exists = os.path.exists(out_file_name)
+        in_file = open(in_file_name, "r").readlines()
+        if out_file_exists:
+            in_file2 = in_file[1:]
+            in_file = in_file2
+        print(ctr, ": ", in_file_name, "(", len(in_file), ")=>", out_file_name)
+        with open(out_file_name, 'a') as out_file:
+            for line in in_file:
+                out_file.write(line)
+        os.remove(in_file_name)
+
+
 if __name__ == "__main__":
-    log = setup_logging("FileUtil.log")
-    unit_test()
+    if len(sys.argv) > 1: compressCSVFiles(sys.argv[1])
+    #log = setup_logging("FileUtil.log")
+    #unit_test()
     pass
 
