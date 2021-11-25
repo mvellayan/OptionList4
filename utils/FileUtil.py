@@ -10,6 +10,7 @@ from logging.handlers import RotatingFileHandler
 
 import numpy as np
 from datetime import datetime, timedelta
+import time
 
 from ib_insync import *
 
@@ -244,6 +245,7 @@ def setup_logging(fn="py-log.log", size=1000000):
                         datefmt='%Y-%m-%dT%H:%M:%S')
 
     log = logging.getLogger()
+    logging.Formatter.converter = time.localtime
     log.setLevel(logging.INFO)
     log.propagate = False
     return log
