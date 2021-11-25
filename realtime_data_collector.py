@@ -191,7 +191,7 @@ if __name__ == "__main__":
 
     config = FileUtil.readConfig(sys.argv[1])
     fn = "/logs/" + config["stock"] + "realtime_data_collector.log"
-    print("Passing in fn = [" + fn  + "]")
+    print("Passing in fn = [" + fn + "]")
     log = setup_logging(fn)
 
     FileUtil.setLog(log)

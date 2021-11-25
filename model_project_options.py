@@ -8,7 +8,7 @@ from timeit import default_timer as timer
 from datetime import timedelta
 
 from utils import FileUtil, IBUtil
-from utils.FileUtil import p, makeDirectory, unzip_file, get_sec_to_expire
+from utils.FileUtil import makeDirectory, unzip_file, get_sec_to_expire, setup_logging
 
 pdOptionList: pd.DataFrame = None     # Data Frame all options Contracts for the symbol
 pdOptionList3wC: pd.DataFrame = None     # 3 week calls only
@@ -108,10 +108,12 @@ def loadBasicData(startingDir):
 
     # No files in the directory
     if pdStockQuotes is None:
-        p("No files in the directory?? " + startingDir + "/" + symbol + "_" + "*csv")
+        log.error("No files in the directory?? " + startingDir + "/" + symbol + "_" + "*csv")
         return False
     else:
-        p("Found [", pdStockQuotes.shape, "] stocks rows.")
+        log.info("Found [")
+        log.info(pdStockQuotes.shape)
+        log.info("] stocks rows.")
 
     # 3. Load variable : expiryList
     expiryList = IBUtil.get_expiry_list(pdStockQuotes[['Time']].values[0][0], 3)
@@ -156,7 +158,7 @@ def main(dirName):
     global running_missing, running_total, total_lookup
 
     if not loadBasicData(dirName):
-        p("Cant find data in this dir: ", dirName)
+        log.err("Cant find data in this dir: " + dirName)
         return
 
     running_total = running_missing = 0
@@ -169,32 +171,49 @@ def main(dirName):
 
     df.set_index('Time')
     end = timer()
-    p("TIME: Projecting: ",  timedelta(seconds=end - start))
+    log.info("TIME: Projecting: ")
+    log.info(timedelta(seconds=end - start))
 
     # Section
-    p(" Starting Joining")
+    log.info(" Starting Joining")
     projection = pdStockQuotes.merge(df, on="Time", how="outer")
 
     outfile = dirName + "/projection_stock_call_options_" + config["stock"] + ".csv"
-    p(" Writing to File [", outfile, "]")
+    log.info(" Writing to File [" + outfile + "]")
     projection.to_csv(outfile, float_format='%.6f')
 
-    p("Done!")
+    log.info("Done!")
 
 
 if __name__ == "__main__":
     pd.set_option('display.max_columns', None)
     if len(sys.argv) < 2:
-        p("\n\nUsage: project.py <config_file.yml>\n\n")
+        pprint("\n\nUsage: project.py <config_file.yml>\n\n")
         sys.exit(0)
     else:
-        p("using config file [" + sys.argv[1] + "]")
+        print("using config file [" + sys.argv[1] + "]")
 
     config = FileUtil.readConfig(sys.argv[1])
+    log = setup_logging(os.getcwd() + "/logs/" + config["stock"] + "_modeling.log")
+    FileUtil.setLog(log)
+    IBUtil.setLog(log)
 
-    main("/Users/Muthu/Development/OptionList4/IBdata/2021/11/18")
-    # for directory in os.walk("IBdata/"):
-    #     for files in directory[2]:
-    #         if config["stock"] + 'optionList' in files:
-    #             p("In main loop.  Found/Processing directory: ", directory[0])
-    #             main(directory[0])
+    scan_dir = os.getcwd() + "/IBdata"
+
+    if len(sys.argv) == 3:
+        scan_dir = os.getcwd() + "/" + sys.argv[2]
+        if not os.path.isdir(scan_dir):
+            scan_dir = sys.argv[2]
+            if not os.path.isdir(scan_dir):
+                print("Input path does not seem to exist / as a dir ", scan_dir, os.getcwd() + "/" + sys.argv[2])
+                sys.exit(0)
+        if glob.glob(scan_dir + "/" + config["stock"] + 'optionList*.csv'):
+            main(scan_dir)
+    else:
+        print("Scanning start directory: " + scan_dir)
+        for rootdir, dirs, files in os.walk(scan_dir):
+            for subdir in dirs:
+                full_dir = os.path.join(rootdir, subdir)
+                if glob.glob(full_dir + "/" + config["stock"] + 'optionList*.csv'):
+                    main(full_dir)
+
