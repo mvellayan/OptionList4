@@ -253,7 +253,7 @@ def setup_logging(fn="py-log.log", size=1000000):
 
 def compressCSVFiles(dir):
     ctr: int = 0
-    for in_file_name in glob.glob(dir + "/*_*_*.csv"):
+    for in_file_name in glob.glob(dir + "/*21*_*21*_*.csv"):
         ctr += 1
         out_file_name = in_file_name[0: in_file_name.rfind('_')] + ".csv"
         out_file_exists = os.path.exists(out_file_name)
@@ -266,6 +266,7 @@ def compressCSVFiles(dir):
             for line in in_file:
                 out_file.write(line)
         os.remove(in_file_name)
+    print("In directory [", dir, "] processed/deleted file count: [", ctr, "]")
 
 
 if __name__ == "__main__":

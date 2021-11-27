@@ -3,6 +3,8 @@ schedule
 bs4
 ipython
 pandas
+matplotlib
+openpyxl
 #
 # from threading import Thread, Condition
 # import time
