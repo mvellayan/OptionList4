@@ -119,9 +119,8 @@ def writeQuotesToFile(arg):
         check_IB_conneciton_broke(ib, threading.current_thread().name + ': writeQuotesFile Thread.')
 
 
-def main(configFileName):
+def main():
     global config, contracts
-    config = FileUtil.readConfig(configFileName)
 
     writeThread = threading.Thread(target=writeQuotesToFile, args=(1,))
     writeThread.start()
@@ -183,6 +182,8 @@ def main(configFileName):
             log.info("No changes detected.  Using the same contract list")
 
 if __name__ == "__main__":
+    global config
+
     if len(sys.argv) < 2:
         print("\t\tUsage: collect_data.py <config_file.yml>\n\n")
         sys.exit(0)
@@ -198,7 +199,7 @@ if __name__ == "__main__":
     IBUtil.setLog(log)
     log.error("Starting with arguments: ")
     log.info(sys.argv)
-    main(sys.argv[1])
+    main()
 
 
 
