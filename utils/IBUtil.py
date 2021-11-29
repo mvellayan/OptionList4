@@ -46,7 +46,7 @@ def pull_options_list(ib, config):
     log.info("Option Contracts written to file [" + fileName + "]")
 
 
-def get_filtered_contract_list(ib, config, force_pull=False): # -> "[] of stock and option contracts to pull"
+def get_filtered_contract_list(ib, config, quoteAmt: float = 0.0, force_pull=False): # -> "[] of stock and option contracts to pull"
     retArray = []  #array of contracts
 
     stk = Contract(symbol=config["stock"], secType="STK", exchange="SMART",
@@ -63,17 +63,17 @@ def get_filtered_contract_list(ib, config, force_pull=False): # -> "[] of stock 
 
     #get last price
     #self, reqId, contract, genericTickList, snapshot, regulatorySnapshot, mktDataOptions):
-    data = ib.reqMktData(contract=stk, snapshot=True)
-    while data.last != data.last:
-        ib.sleep(0.01)  # Wait until data is in.
-    # ib.cancelMktData(42)
-    #p(data)
-    log.info("Using last quote:")
-    log.info(data.last)
+    if quoteAmt == 0:
+        data = ib.reqMktData(contract=stk, snapshot=True)
+        while data.last != data.last:
+            ib.sleep(0.01)  # Wait until data is in.
+        quoteAmt: = data.last
+        log.info("Using last quote:")
+    log.info(quoteAmt)
 
     # expiryList, quoteLast, optionList, strikeBox=3)
     expiryList = get_expiry_list(datetime.now(), config["weeksOut"])
-    retArray += filter_option_list(expiryList, data.last, optionList, config["strikeBox"])
+    retArray += filter_option_list(expiryList, quoteAmt, optionList, config["strikeBox"])
     return retArray
 
 filter_option_list_cache = {}
@@ -136,8 +136,9 @@ def is_trading_hours(now=datetime.now()):
         return False
 
 
-def get_options_list_file_name(config):
-    dateStr = datetime.now().astimezone(pytz.timezone('US/Eastern')).strftime("%Y%m%d")
+def get_options_list_file_name(config, dateStr=""):
+    if dateStr == "":
+        dateStr = datetime.now().astimezone(pytz.timezone('US/Eastern')).strftime("%Y%m%d")
     return makeDataFileName(config["stock"] + "_optionList_" + dateStr, False)
 
 

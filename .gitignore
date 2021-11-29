@@ -12,6 +12,12 @@ share/man/man1/ipython.1.gz
 IBdata/
 data/
 
+#Do not commit data or logs
+*csv
+*xlsx
+logs/
+share/
+
 __pycache__/
 *.py[cod]
 *$py.class

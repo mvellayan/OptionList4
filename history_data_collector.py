@@ -18,7 +18,10 @@ from utils import FileUtil, IBUtil
 # see: https://github.com/erdewit/ib_insync
 from utils.FileUtil import setup_logging
 
+## Globals
 queues = {}
+quote_date_str = str()
+quote_date = datetime.now()
 queues_start_time = datetime.now()
 condition = Condition()
 ib = IB() # IB connection
@@ -120,7 +123,7 @@ def writeQuotesToFile(arg):
 
 
 def main():
-    global config, contracts
+    global config, contracts, quote_date_str, quote_date
 
     writeThread = threading.Thread(target=writeQuotesToFile, args=(1,))
     writeThread.start()
@@ -135,6 +138,27 @@ def main():
         raise NameError("Cannot connect to IB")
 
     log.info("Connection Status: " + str(ib.isConnected()))
+
+    # 1. get stock qutotes for the day and save to file
+    ### this does not work =(
+    stk = Contract(symbol=config["stock"], secType="STK", exchange="SMART",
+                   conId=config["stockContractId"], currency="USD")
+
+    bars = ib.reqHistoricalData(stk, endDateTime=quote_date_str + " 16:00:00", durationStr="1 D",
+                            barSizeSetting="1 secs",
+                            whatToShow="MIDPOINT, HISTORICAL_VOLATILITY, OPTION_IMPLIED_VOLATILITY",
+                            useRTH=True,  # regular Trading Hours only = True
+                            formatDate=1, keepUpToDate=False)
+    print("bars =", bars)
+
+    sys.exit(1)
+
+    # 2. get option quotes for the day and save to file
+    # 3. get filtered option list for the day
+    #     use existing funciton IBUtil.get_filtered_contract_list(ib, config, quoteAmt = each of the quote amount)
+    #     then collect a unique set of contracts
+    # 4. get option quotes for the day for each of the filterd unique contract
+
 
     contracts = IBUtil.get_filtered_contract_list(ib, config)
     pprint(contracts)
@@ -182,21 +206,29 @@ def main():
             log.info("No changes detected.  Using the same contract list")
 
 if __name__ == "__main__":
-
-    if len(sys.argv) < 2:
-        print("\t\tUsage: collect_data.py <config_file.yml>\n\n")
+    if len(sys.argv) < 3:
+        print("\t\tUsage: collect_data.py <config_file.yml> <yyyy-mm-dd>\n\n")
         sys.exit(0)
     else:
         print("\tusing config file [" + sys.argv[1] + "]")
 
     config = FileUtil.readConfig(sys.argv[1])
-    fn = "/logs/" + config["stock"] + "realtime_data_collector.log"
+    quote_date_str = sys.argv[2]
+    quote_date = FileUtil.getDateObjFromStr(sys.argv[2], "YYYYMMDD")
+
+
+    log_dir = ""
+    if os.path.isdir("/logs"):
+            log_dir = "/logs/"
+    elif os.path.isdir("logs"):
+        log_dir = "logs/"
+    fn = log_dir + config["stock"] + "history_data_collector.log"
     print("Passing in fn = [" + fn + "]")
     log = setup_logging(fn)
-
     FileUtil.setLog(log)
     IBUtil.setLog(log)
-    log.info("Starting with arguments: ")
+
+    log.error("Starting with arguments: ")
     log.info(sys.argv)
     main()
 
