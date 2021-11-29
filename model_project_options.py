@@ -157,8 +157,14 @@ def main(dirName):
     global pdStockQuotes, pdOptionList, pdOptionQuotesIdx
     global running_missing, running_total, total_lookup
 
+    outfile = dirName + "/projection_stock_call_options_" + config["stock"] + ".csv"
+    print("Pricessing directory ", dirName, "to outfile", outfile)
+    if os.path.exists(outfile):
+        print("outfile exist, skipping directory")
+        return
+
     if not loadBasicData(dirName):
-        log.err("Cant find data in this dir: " + dirName)
+        log.error("Cant find data in this dir: " + dirName)
         return
 
     running_total = running_missing = 0
@@ -178,14 +184,13 @@ def main(dirName):
     log.info(" Starting Joining")
     projection = pdStockQuotes.merge(df, on="Time", how="outer")
 
-    outfile = dirName + "/projection_stock_call_options_" + config["stock"] + ".csv"
-    log.info(" Writing to File [" + outfile + "]")
     projection.to_csv(outfile, float_format='%.6f')
 
     log.info("Done!")
 
 
 if __name__ == "__main__":
+    global log
     pd.set_option('display.max_columns', None)
     if len(sys.argv) < 2:
         pprint("\n\nUsage: project.py <config_file.yml>\n\n")
@@ -195,6 +200,7 @@ if __name__ == "__main__":
 
     config = FileUtil.readConfig(sys.argv[1])
     log = setup_logging(os.getcwd() + "/logs/" + config["stock"] + "_modeling.log")
+    print("Using log file: ", log)
     FileUtil.setLog(log)
     IBUtil.setLog(log)
 
