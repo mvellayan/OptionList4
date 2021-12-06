@@ -2,7 +2,7 @@ version: "3.9"
 services:
   fb:
     image: ol4:latest
-    command: python3 realtime_data_collector.py config/config-fb.json >> /logs/fb_log
+    command: python3 ib_realtime_18.py config/config-fb.json >> /logs/fb_log
 #   restart: always
     volumes:
       - ./IBdata:/IBapp/IBdata
@@ -11,7 +11,7 @@ services:
     network_mode: "host"
   aapl:
     image: ol4:latest
-    command: python3 realtime_data_collector.py config/config-aapl.json >> /logs/aapl_log
+    command: python3 ib_realtime_18.py config/config-aapl.json >> /logs/aapl_log
 #   restart: always
     volumes:
       - ./IBdata:/IBapp/IBdata
