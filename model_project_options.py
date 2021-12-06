@@ -152,7 +152,9 @@ def loadBasicData(startingDir):
             print("Error: %s : %s" % (startingDir, e.strerror))
     else:
         # 6b. loose files, zip it up
-        FileUtil.zip_and_delete(startingDir, config["stock"])
+        new_zip_file = startingDir + ".zip"
+        FileUtil.zip_and_delete(directory=startingDir, file_prefix=config["stock"], zip_file_name=new_zip_file)
+        #FileUtil.zip_and_delete(startingDir, config["stock"])
 
     # 7. Done!!
     return True
