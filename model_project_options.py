@@ -1,3 +1,4 @@
+import logging
 import shutil
 from datetime import datetime, timedelta, date
 import glob, sys, os
@@ -9,6 +10,10 @@ from datetime import timedelta
 
 from utils import FileUtil, IBUtil
 from utils.FileUtil import makeDirectory, unzip_file, get_sec_to_expire, setup_logging
+
+logging.basicConfig(level=logging.ERROR)
+log = logging.getLogger("myLogger")
+log.setLevel(logging.INFO)
 
 pdOptionList: pd.DataFrame = None     # Data Frame all options Contracts for the symbol
 pdOptionList3wC: pd.DataFrame = None     # 3 week calls only
@@ -155,10 +160,10 @@ def loadBasicData(startingDir):
 
 def main(dirName):
     global pdStockQuotes, pdOptionList, pdOptionQuotesIdx
-    global running_missing, running_total, total_lookup
+    global running_missing, running_total, total_lookup, config
 
     outfile = dirName + "/projection_stock_call_options_" + config["stock"] + ".csv"
-    print("Pricessing directory ", dirName, "to outfile", outfile)
+    print("Processing directory ", dirName, "to outfile", outfile)
     if os.path.exists(outfile):
         print("outfile exist, skipping directory")
         return
@@ -190,7 +195,7 @@ def main(dirName):
 
 
 if __name__ == "__main__":
-    global log
+
     pd.set_option('display.max_columns', None)
     if len(sys.argv) < 2:
         pprint("\n\nUsage: project.py <config_file.yml>\n\n")
@@ -199,10 +204,6 @@ if __name__ == "__main__":
         print("using config file [" + sys.argv[1] + "]")
 
     config = FileUtil.readConfig(sys.argv[1])
-    log = setup_logging(os.getcwd() + "/logs/" + config["stock"] + "_modeling.log")
-    print("Using log file: ", log)
-    FileUtil.setLog(log)
-    IBUtil.setLog(log)
 
     scan_dir = os.getcwd() + "/IBdata"
 
