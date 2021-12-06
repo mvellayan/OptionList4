@@ -7,6 +7,8 @@ from utils import FileUtil, IBUtil
 
 #
 # see: https://github.com/erdewit/ib_insync
+from utils.IBUtil import get_options_list_file_name
+
 config = {}
 ib = IB()
 
@@ -23,7 +25,7 @@ def main(configFileName):
 
     print("Connection Status: ", ib.isConnected())
 
-    IBUtil.pull_options_list(ib, config)
+    IBUtil.pull_options_list(ib, config, get_options_list_file_name(config))
 
 
 

@@ -206,7 +206,7 @@ if __name__ == "__main__":
 
     logging.basicConfig(level=logging.ERROR)
     log = logging.getLogger('myLogger')
-    log.setLevel(log.info)
+    log.setLevel(logging.INFO)
 
     config = FileUtil.readConfig(args.config)
-    # main()
+    main()

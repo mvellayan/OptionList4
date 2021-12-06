@@ -14,7 +14,7 @@ from utils.FileUtil import makeDataFileName, setup_logging
 
 log = logging.getLogger("myLogger")
 
-def pull_options_list(ib, config):
+def pull_options_list(ib, config, fileName):
 
     # contract.conId = sec["ConId"]
     l_contract = Contract(symbol=config["stock"], secType="OPT", exchange="SMART",
@@ -22,15 +22,14 @@ def pull_options_list(ib, config):
 
     contractList = ib.reqContractDetails(l_contract)
     df = pd.DataFrame(columns=['con_id', 'symbol', 'expiry', 'strike', 'right'])
-
     df.set_index('con_id')
+
     # move contractList to panda so we can easily write it to a csv file
     for obj in contractList:
         c = obj.contract
         df.loc[len(df)] = [c.conId, c.localSymbol, c.lastTradeDateOrContractMonth,
-                           c.strike, c.right ]
+                           c.strike, c.right]
 
-    fileName = get_options_list_file_name(config)
     # if file exists, move it
     if os.path.exists(fileName):
         logging.info("File already exists [" + fileName + "]")
@@ -38,7 +37,7 @@ def pull_options_list(ib, config):
         logging.info("Moving it to timestamp file: " + newFileName)
         os.rename(fileName, newFileName)
 
-    df.to_csv(fileName)
+    df.to_csv(fileName, index=False)
     log.info("Option Contracts written to file [" + fileName + "]")
 
 
@@ -52,7 +51,7 @@ def get_filtered_contract_list(ib, config, quoteAmt: float = 0.0, force_pull=Fal
     fileName = get_options_list_file_name(config)
     if (not os.path.exists(fileName)) or force_pull:
         log.info("Creating new file: [" + fileName + "]")
-        pull_options_list(ib, config)
+        pull_options_list(ib, config, fileName)
     else:
         log.info("OptionsList file found.  Using [" + fileName + "]")
     optionList = pd.read_csv(fileName)
@@ -90,8 +89,8 @@ def filter_option_list(expiryList, quoteAmt: float, df, strikeBox: int):
 
     #filter by expiration date
     for i, exp in enumerate(expiryList):
-        # df_exp[i] = df[df['lastTradeDateOrContractMonth'] == exp]
-        df_week = df[df['lastTradeDateOrContractMonth'] == exp]
+        # df_exp[i] = df[df['expiry'] == exp]
+        df_week = df[df['expiry'] == exp]
 
         df_pos = df_week[df_week['strikeDelta'] >= 0]
         df_w = df_pos.sort_values(['strikeDelta'], ascending=True).head(strikeBox)
@@ -107,14 +106,14 @@ def filter_option_list(expiryList, quoteAmt: float, df, strikeBox: int):
     # p(df_res.describe())
 
     # p('\n\n--------------------- Strike (', quoteAmt, ')---------------')
-    df_res = df_res.sort_values(by=['lastTradeDateOrContractMonth', 'strike'], ascending=True)
+    df_res = df_res.sort_values(by=['expiry', 'strike'], ascending=True)
     for ind in df_res.index:
         # p(df_res["conId"][ind], df_res["strike"][ind],
         #      df_res["lastTradeDateOrContractMonth"][ind], df_res["localSymbol"][ind])
-        retArray.append(Contract(conId=df_res["conId"][ind],  secType="OPT", exchange="SMART",
-                                 currency="USD", right=df_res["right"][ind], symbol=df_res["localSymbol"][ind],
+        retArray.append(Contract(conId=df_res["con_id"][ind],  secType="OPT", exchange="SMART",
+                                 currency="USD", right=df_res["right"][ind], symbol=df_res["symbol"][ind],
                                  strike=df_res["strike"][ind], lastTradeDateOrContractMonth =
-                                 df_res["lastTradeDateOrContractMonth"][ind]))
+                                 df_res["expiry"][ind]))
     # p('\n Summary: Above Strike (', df_res.shape, ') \n')
 
     filter_option_list_cache[quoteAmt] = retArray
@@ -135,7 +134,7 @@ def is_trading_hours(now=datetime.now()):
 def get_options_list_file_name(config, dateStr=""):
     if dateStr == "":
         dateStr = datetime.now().astimezone(pytz.timezone('US/Eastern')).strftime("%Y%m%d")
-    return makeDataFileName(config["stock"] + "_optionList_" + dateStr, False)
+    return makeDataFileName("ol_" + config["stock"] + "_" + dateStr, False)
 
 
 class MarketData:
