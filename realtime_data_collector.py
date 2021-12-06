@@ -1,5 +1,6 @@
+import argparse
+import json
 import os
-import sys
 import subprocess
 from pprint import pprint
 from pprint import pformat
@@ -45,8 +46,8 @@ def onPendingTicker(tickers):
 def saveDataInCSV():
     condition.acquire()
     global queues
-    header = ['ConId', 'Symbol', 'Time', 'Bid', 'BidSize', 'Ask', 'AskSize',
-              'Last', 'LastSize', 'Volume', 'histVolatility', 'impliedVolatility']
+    header = ['con_id', 'symbol', 'time', 'bid', 'bid_size', 'ask', 'ask_size',
+              'last', 'last_size', 'volume', 'hist_volatility', 'implied_volatility']
     for symbol in queues:
         queue = queues.get(symbol)
         out_file = FileUtil.makeDataFileName(symbol)
@@ -97,12 +98,11 @@ def check_IB_conneciton_broke(ib, msg: str):
     else:
         # Should not get here.
         log.info("Unexpected situation isConnected[")
-        log.inof(isConnected)
-        log.infor("] and is_trading_hours[")
+        log.info(isConnected)
+        log.info("] and is_trading_hours[")
         log.info(isTradingHours)
         log.info(msg)
         exit(0)
-
     return False
 
 
@@ -181,24 +181,32 @@ def main():
         else:
             log.info("No changes detected.  Using the same contract list")
 
+
+def collect_args() -> dict:
+    """Collect arguments passed into the script
+
+    Returns:
+        dict: Arguments Object
+    """
+    parser = argparse.ArgumentParser(
+        description='Collect per second Realtime Data for a stock + 18 related options')
+
+    parser.add_argument('config', help='JSON file that contains all the configuration',
+                        default="config.json", type=str)
+    parser.add_argument('--verbose', help='Enable verbose output', action='store_true')
+    parser.add_argument('--debug', help='Enable debug output', action='store_true')
+    parser.add_argument('--info', help='Enable info level output', action='store_true')
+
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
+    args = collect_args()
+    print(json.dumps(args, indent=4, default=str))
 
-    if len(sys.argv) < 2:
-        print("\t\tUsage: collect_data.py <config_file.yml>\n\n")
-        sys.exit(0)
-    else:
-        print("\tusing config file [" + sys.argv[1] + "]")
+    logging.basicConfig(level=logging.ERROR)
+    log = logging.getLogger('myLogger')
+    log.setLevel(log.info)
 
-    config = FileUtil.readConfig(sys.argv[1])
-    fn = "/logs/" + config["stock"] + "realtime_data_collector.log"
-    print("Passing in fn = [" + fn + "]")
-    log = setup_logging(fn)
-
-    FileUtil.setLog(log)
-    IBUtil.setLog(log)
-    log.info("Starting with arguments: ")
-    log.info(sys.argv)
-    main()
-
-
-
+    config = FileUtil.readConfig(args.config)
+    # main()

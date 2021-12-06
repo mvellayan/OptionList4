@@ -6,7 +6,6 @@ import os
 import re
 import zipfile
 import logging
-from logging.handlers import RotatingFileHandler
 
 import numpy as np
 from datetime import datetime, timedelta
@@ -14,12 +13,7 @@ import time
 
 from ib_insync import *
 
-global log
-
-def setLog(inlog):
-    global log
-    log = inlog
-
+log = logging.getLogger("myLogger")
 
 def readConfig(fileName):
     data = {}
@@ -27,15 +21,11 @@ def readConfig(fileName):
         # open file and load data
         f = open(fileName, 'r')
         data = json.load(f)
-        # print("\n\nINFO: Parameter File:")
-        # pprint(data)
         f.close()
     except OSError:
         log.error('cannot open file', fileName)
         sys.exit(1)
     # verify fields exist
-    # print("\nINFO: parameters Check:")
-    # testing:
     x = data["tws_port"]
     x = data["file_flush_seconds"]
     x = data["stock"]
@@ -50,7 +40,7 @@ def makeDataFileName(inputFileName, addTimestamp=True):
     month_str = now.strftime("%m")
     day_str = now.strftime("%d")
     time_str = now.strftime("%H%M%S")
-    #making contract name to file name:
+    # making contract name to file name:
     outputFileName = ''.join(re.findall('[a-zA-Z0-9]+', inputFileName))
     fileName = "./IBdata/" + year_str + "/" + month_str + "/" + day_str + "/" + outputFileName
     if addTimestamp:
@@ -63,6 +53,7 @@ def makeDataFileName(inputFileName, addTimestamp=True):
 def makeDirectory(fileName):
     # log.info(os.path.dirname(fileName))
     # log.info(os.path.exists(os.path.dirname(fileName)))
+
     if True or (not os.path.exists(os.path.dirname(fileName))):
         try:
             os.makedirs(os.path.dirname(fileName), exist_ok=True)
@@ -104,6 +95,7 @@ def getDateObjFromStr(inTime, in_format="YYYYMMDDHHMMSS"):
         return datetime(int(inTime[0:4]), int(inTime[4:6]),
                     int(inTime[6:8]))
     log.error("Unexpected in format: ", in_format)
+
     assert False
 
 
@@ -117,19 +109,20 @@ def getStrFromDate(inTime: datetime, in_format: str="YYYYMMDDHHMMSS"):
         returnValue = inTime.strftime("%Y-%m-%d")
     else:
         assert False
+
     return returnValue
 
 
 # Example call
 # zip_and_delete('/Users/Muthu/Development/OptionList4/IBdata/2021/11/12/test', 'FB')
-def zip_and_delete(directory, file_prefix):
+def zip_and_delete(directory, file_prefix, zip_file_name):
     cwd = os.getcwd()
     os.chdir(os.path.dirname(directory))
-    zip_file_name = directory + "/" + file_prefix + '.zip'
+
     with zipfile.ZipFile(file=zip_file_name, mode="a", compression=zipfile.ZIP_DEFLATED, allowZip64=True) as zf:
         for root, foo2, filenames in os.walk(os.path.basename(directory)):
             for name in filenames:
-                if name.startswith(file_prefix) and ".zip" not in name:
+                if name.startswith(file_prefix) and name.endswith(".csv") and ".zip" not in name:
                     name2 = os.path.join(root, name)
                     name2 = os.path.normpath(name2)
                     zf.write(name2, name)
@@ -236,19 +229,14 @@ def unit_test():
     assert 6*23400 == get_sec_to_expire(getDateObjFromStr("20211114083000"), getDateObjFromStr("20211122123000"))
 
 
-def setup_logging(fn="py-log.log", size=1000000):
-    # logging.basicConfig(filename="../logs/"+fn, format='%(asctime)s-%(threadName)s-%(levelname)s: %(message)s')
-    print ("Loggin to file: ", fn)
-    logging.basicConfig(handlers=[RotatingFileHandler(fn, maxBytes=size, backupCount=3)],
-                        level=logging.DEBUG,
+def setup_logging(fn="logs/py-log.log", size=1000000):
+    # log.basicConfig(filename="../logs/"+fn, format='%(asctime)s-%(threadName)s-%(levelname)s: %(message)s')
+    log.basicConfig(handlers=[RotatingFileHandler(fn, maxBytes=size, backupCount=3)],
                         format="[%(asctime)s] %(threadName)s %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s",
                         datefmt='%Y-%m-%dT%H:%M:%S')
-
-    log = logging.getLogger()
-    logging.Formatter.converter = time.localtime
+    log.Formatter.converter = time.localtime
     log.setLevel(logging.INFO)
     log.propagate = False
-    return log
 
 
 def compressCSVFiles(dir):
@@ -271,7 +259,7 @@ def compressCSVFiles(dir):
 
 if __name__ == "__main__":
     if len(sys.argv) > 1: compressCSVFiles(sys.argv[1])
-    #log = setup_logging("FileUtil.log")
-    #unit_test()
+    # log = setup_logging("FileUtil.log")
+    # unit_test()
     pass
 

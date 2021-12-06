@@ -1,3 +1,4 @@
+import logging
 import math
 import os
 
@@ -11,12 +12,7 @@ from ib_insync import *
 from utils import FileUtil
 from utils.FileUtil import makeDataFileName, setup_logging
 
-global log
-
-def setLog(inlog):
-    global log
-    log = inlog
-
+log = logging.getLogger("myLogger")
 
 def pull_options_list(ib, config):
 
@@ -25,21 +21,21 @@ def pull_options_list(ib, config):
                           currency="USD")
 
     contractList = ib.reqContractDetails(l_contract)
-    df = pd.DataFrame(columns=['secType', 'conId', 'symbol', 'lastTradeDateOrContractMonth',
-                               'strike', 'right', 'localSymbol'])
+    df = pd.DataFrame(columns=['con_id', 'symbol', 'expiry', 'strike', 'right'])
 
+    df.set_index('con_id')
     # move contractList to panda so we can easily write it to a csv file
     for obj in contractList:
         c = obj.contract
-        df.loc[len(df)] = [c.secType, c.conId, c.symbol, c.lastTradeDateOrContractMonth,
-                           c.strike, c.right, c.localSymbol]
+        df.loc[len(df)] = [c.conId, c.localSymbol, c.lastTradeDateOrContractMonth,
+                           c.strike, c.right ]
 
     fileName = get_options_list_file_name(config)
     # if file exists, move it
     if os.path.exists(fileName):
-        log.info("File already exists [" + fileName + "]")
+        logging.info("File already exists [" + fileName + "]")
         newFileName = fileName + "_" + datetime.now().strftime("%H%M%S")
-        log.info("Moving it to timestamp file: " + newFileName)
+        logging.info("Moving it to timestamp file: " + newFileName)
         os.rename(fileName, newFileName)
 
     df.to_csv(fileName)
@@ -67,7 +63,7 @@ def get_filtered_contract_list(ib, config, quoteAmt: float = 0.0, force_pull=Fal
         data = ib.reqMktData(contract=stk, snapshot=True)
         while data.last != data.last:
             ib.sleep(0.01)  # Wait until data is in.
-        quoteAmt: = data.last
+        quoteAmt = data.last
         log.info("Using last quote:")
     log.info(quoteAmt)
 
@@ -190,6 +186,5 @@ def get_expiry_list(quoteTimeDate, noWeeks: int):
 
 
 if __name__ == "__main__":
-    log = setup_logging("IBUtil.log")
     log.info( is_trading_hours())
 
