@@ -1,3 +1,5 @@
+import argparse
+import json
 import os
 import sys
 import subprocess
@@ -6,13 +8,15 @@ from pprint import pformat
 import threading, csv
 from threading import Condition
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 
 import pytz
 from ib_insync import *
 
 from utils import FileUtil, IBUtil
+
+log = logging.getLogger("myLogger")
 
 #
 # see: https://github.com/erdewit/ib_insync
@@ -100,8 +104,8 @@ def check_IB_conneciton_broke(ib, msg: str):
     else:
         # Should not get here.
         log.info("Unexpected situation isConnected[")
-        log.inof(isConnected)
-        log.infor("] and is_trading_hours[")
+        log.info(isConnected)
+        log.info("] and is_trading_hours[")
         log.info(isTradingHours)
         log.info(msg)
         exit(0)
@@ -122,14 +126,11 @@ def writeQuotesToFile(arg):
         check_IB_conneciton_broke(ib, threading.current_thread().name + ': writeQuotesFile Thread.')
 
 
-def main():
+def main(dt):
     global config, contracts, quote_date_str, quote_date
 
-    writeThread = threading.Thread(target=writeQuotesToFile, args=(1,))
-    writeThread.start()
-
     log.info("Connecting to ip [" + config["tws_host"] + "] port[" + str(config["tws_port"])
-             + "] clientId [" + str(config["tws_port"]) + "]")
+                 + "] clientId [" + str(config["tws_port"]) + "]")
     try:
         ib.connect(config["tws_host"], config["tws_port"], clientId=config["tws_port"])
     except BaseException as err:
@@ -144,6 +145,34 @@ def main():
     stk = Contract(symbol=config["stock"], secType="STK", exchange="SMART",
                    conId=config["stockContractId"], currency="USD")
 
+    #https://ib-insync.readthedocs.io/recipes.html
+    barsList = []
+    st :str = dt + " 16:00:00"
+    while True:
+        bars = ib.reqHistoricalData(
+            stk,
+            endDateTime=st,
+            durationStr='1 D',
+            barSizeSetting='5 secs',
+            whatToShow='MIDPOINT',
+            useRTH=True,
+            formatDate=1,
+            keepUpToDate=False)
+        if not bars:
+            break
+        barsList.append(bars)
+        dt = bars[0].date
+
+    # save to CSV file
+    allBars = [b for bars in reversed(barsList) for b in bars]
+    #df = util.df(allBars)
+    print("len=", len(barsList))
+    i = 0
+    for b in barsList:
+        print ("\t", i , ":", b)
+        i += 1
+    sys.exit(1)
+
     bars = ib.reqHistoricalData(stk, endDateTime=quote_date_str + " 16:00:00", durationStr="1 D",
                             barSizeSetting="1 secs",
                             whatToShow="MIDPOINT, HISTORICAL_VOLATILITY, OPTION_IMPLIED_VOLATILITY",
@@ -151,7 +180,7 @@ def main():
                             formatDate=1, keepUpToDate=False)
     print("bars =", bars)
 
-    sys.exit(1)
+
 
     # 2. get option quotes for the day and save to file
     # 3. get filtered option list for the day
@@ -205,32 +234,55 @@ def main():
         else:
             log.info("No changes detected.  Using the same contract list")
 
+
+def collect_args() -> dict:
+    """Collect arguments passed into the script
+
+    Returns:
+        dict: Arguments Object
+    """
+    parser = argparse.ArgumentParser(
+        description='Collect per second Historic Data for a stock + 18 related options')
+
+    parser.add_argument('config', help='JSON file that contains all the configuration',
+                        default="config.json", type=str)
+    parser.add_argument('dates',
+                        help='Date or DateRage to pull data. eg: YYYYMMDD or YYYYMMDD,YYYYMMDD',
+                        default=FileUtil.getStrFromDate(datetime.now(), "YYYYMMDD"), type=str)
+    parser.add_argument('--verbose', help='Enable verbose output', action='store_true')
+    parser.add_argument('--debug', help='Enable debug output', action='store_true')
+    parser.add_argument('--info', help='Enable info level output', action='store_true')
+
+    return parser.parse_args()
+
+
+
 if __name__ == "__main__":
-    if len(sys.argv) < 3:
-        print("\t\tUsage: collect_data.py <config_file.yml> <yyyy-mm-dd>\n\n")
-        sys.exit(0)
+
+    logging.basicConfig(level=logging.ERROR)
+    log = logging.getLogger('myLogger')
+    log.setLevel(log.info)
+
+    log = logging.getLogger('myLogger')
+    log.setLevel(logging.INFO)
+    args = collect_args()
+
+    config = FileUtil.readConfig(args.config)
+
+    quote_date_str = args.dates.split(',')
+    quote_date = []
+
+    if len(quote_date_str) == 1:
+        quote_date.append(FileUtil.getDateObjFromStr(quote_date_str[0], "YYYYMMDD"))
+    elif len(quote_date_str) == 2:
+        cur_date = FileUtil.getDateObjFromStr(quote_date_str[0], "YYYYMMDD")
+        end_date = FileUtil.getDateObjFromStr(quote_date_str[1], "YYYYMMDD")
+        ctr = 0;
+        while cur_date <= end_date and ctr < 31:
+            quote_date.append(cur_date)
+            cur_date += timedelta(days=1)
+            ctr += 1
     else:
-        print("\tusing config file [" + sys.argv[1] + "]")
+        raise Exception("Unexpected data parameter.  should be 1 date or 2 dates (start-end)")
 
-    config = FileUtil.readConfig(sys.argv[1])
-    quote_date_str = sys.argv[2]
-    quote_date = FileUtil.getDateObjFromStr(sys.argv[2], "YYYYMMDD")
-
-
-    log_dir = ""
-    if os.path.isdir("/logs"):
-            log_dir = "/logs/"
-    elif os.path.isdir("logs"):
-        log_dir = "logs/"
-    fn = log_dir + config["stock"] + "history_data_collector.log"
-    print("Passing in fn = [" + fn + "]")
-    log = setup_logging(fn)
-    FileUtil.setLog(log)
-    IBUtil.setLog(log)
-
-    log.error("Starting with arguments: ")
-    log.info(sys.argv)
-    main()
-
-
-
+    main("20211130")
