@@ -9,7 +9,7 @@ from timeit import default_timer as timer
 from datetime import timedelta
 
 from utils import FileUtil, IBUtil
-from utils.FileUtil import makeDirectory, unzip_file, get_sec_to_expire, setup_logging
+from utils.FileUtil import makeDirectory, unzip_file, get_sec_to_expire, getDateStrFromPath
 
 logging.basicConfig(level=logging.ERROR)
 log = logging.getLogger("myLogger")
@@ -36,7 +36,7 @@ def expandX(quoteTime, conId, quoteLast):
                  "c_w3_n3", "c_w3_n2", "c_w3_n1", "c_w3_p1", "c_w3_p2", "c_w3_p3"]
     retDict = {}
     index = 0
-    retDict["Time"] = quoteTime
+    retDict["time"] = quoteTime
     quoteDateObj = FileUtil.getDateObjFromStr(quoteTime)
     retDict["p0"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 0)
     retDict["p15s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 15)
@@ -66,23 +66,23 @@ def expandX(quoteTime, conId, quoteLast):
             res = idx
 
             tv = None
-            tv = ((res["Ask"] + res["Bid"])/2) - (quoteLast - contract.strike)
+            tv = ((res["ask"] + res["bid"])/2) - (quoteLast - contract.strike)
             dur = get_sec_to_expire(
                 FileUtil.getDateObjFromStr(quoteTime),
                 FileUtil.getDateObjFromStr(contract.lastTradeDateOrContractMonth,'YYYYMMDD'))
             theta = (tv / dur) * 100 * 1000 # 100 = cents, 100 = basis point
-            retDict[listLabel[index] + "_" + "Symbol"] = res["Symbol"]
-            retDict[listLabel[index] + "_" + "Ask"] = res["Ask"]
-            retDict[listLabel[index] + "_" + "AskSize"] = res["AskSize"]
-            retDict[listLabel[index] + "_" + "Bid"] = res["Bid"]
-            retDict[listLabel[index] + "_" + "BidSize"] = res["BidSize"]
-            retDict[listLabel[index] + "_" + "Last"] = res["Last"]
-            retDict[listLabel[index] + "_" + "LastSize"] = res["LastSize"]
+            retDict[listLabel[index] + "_" + "symbol"] = res["symbol"]
+            retDict[listLabel[index] + "_" + "ask"] = res["ask"]
+            retDict[listLabel[index] + "_" + "ask_size"] = res["ask_size"]
+            retDict[listLabel[index] + "_" + "bid"] = res["bid"]
+            retDict[listLabel[index] + "_" + "bid_size"] = res["bid_size"]
+            retDict[listLabel[index] + "_" + "last"] = res["last"]
+            retDict[listLabel[index] + "_" + "last_size"] = res["last_size"]
             retDict[listLabel[index] + "_" + "strike"] = contract.strike
-            retDict[listLabel[index] + "_" + "strikeDelta"] = quoteLast - contract.strike
-            retDict[listLabel[index] + "_" + "timeValue"] = tv
+            retDict[listLabel[index] + "_" + "strike_delta"] = quoteLast - contract.strike
+            retDict[listLabel[index] + "_" + "time_value"] = tv
             retDict[listLabel[index] + "_" + "theta"] = theta
-            retDict[listLabel[index] + "_" + "impliedVolatility"] = res["impliedVolatility"]
+            retDict[listLabel[index] + "_" + "implied_volatility"] = res["implied_volatility"]
         index += 1
 
     return retDict
@@ -90,7 +90,7 @@ def expandX(quoteTime, conId, quoteLast):
 def loadBasicData(startingDir):
     global config, pdStockQuotes, pdOptionList, pdOptionList3wC, pdOptionQuotesIdx, expiryList
     symbol = config["stock"]
-    zipFilename = startingDir + "/" + symbol + ".zip"
+    zipFilename = startingDir + "/" + symbol + getDateStrFromPath(startingDir) + ".zip"
     startingDirOrig = startingDir
     createdTmpDir = False
 
@@ -102,10 +102,10 @@ def loadBasicData(startingDir):
         unzip_file(startingDir, zipFilename)
 
     # 2. Load pdStockQuotes -- Stock Quotes
-    for file in glob.glob(startingDir + "/" + symbol + "_" + "*csv"):
+    for file in glob.glob(startingDir + "/sq_" + symbol + "_" + "*csv"):
         curPd = pd.read_csv(file)
         # Store only 9:25 to 16:10 data for quotes
-        curPd = curPd[(curPd['Time'] % 1000000).between(92500, 161000)]
+        curPd = curPd[(curPd['time'] % 1000000).between(92500, 161000)]
         if pdStockQuotes is None:
             pdStockQuotes = curPd
         else:
@@ -113,32 +113,30 @@ def loadBasicData(startingDir):
 
     # No files in the directory
     if pdStockQuotes is None:
-        log.error("No files in the directory?? " + startingDir + "/" + symbol + "_" + "*csv")
+        log.error("No files in the directory?? " + startingDir + "/sq_" + symbol + "_" + "*csv")
         return False
     else:
-        log.info("Found [")
-        log.info(pdStockQuotes.shape)
-        log.info("] stocks rows.")
+        log.info(f"Found [{pdStockQuotes.shape}] stocks rows.")
 
     # 3. Load variable : expiryList
-    expiryList = IBUtil.get_expiry_list(pdStockQuotes[['Time']].values[0][0], 3)
+    expiryList = IBUtil.get_expiry_list(pdStockQuotes[['time']].values[0][0], 3)
 
     # 4. Load pdOptionList -- options List
-    for file in glob.glob(startingDir + "/" + symbol + "*optionList*csv"):
+    for file in glob.glob(startingDir + "/ol_" + symbol + "*csv"):
         pdOptionList = pd.read_csv(file)
 
     # 4.b load pdOptionList3wC
     # filtering now for performance improvement.
     pdOptionList3wC = pdOptionList[pdOptionList['right'] == 'C']
-    pdOptionList3wC = pdOptionList3wC[pdOptionList3wC['lastTradeDateOrContractMonth'] <= expiryList[-1]]
+    pdOptionList3wC = pdOptionList3wC[pdOptionList3wC['expiry'] <= expiryList[-1]]
 
     # 5. Load pdOptionQuotesIdx -- Options Quotes
-    for file in glob.glob(startingDir + "/" + symbol + "2" + "*csv"):
+    for file in glob.glob(startingDir + "/oq_" + symbol + "*csv"):
         curPd = pd.read_csv(file)
         # Store only 9:25 to 16:10 data for quotes
-        curPd = curPd[(curPd['Time'] % 1000000).between(92500, 161000)]
+        curPd = curPd[(curPd['time'] % 1000000).between(92500, 161000)]
         for index, row in curPd.iterrows():
-            hash_idx = str(row.ConId) + ":" + str(row.Time)
+            hash_idx = str(row.con_id) + ":" + str(row.time)
             # print (index, '->', row, '==>', hash_idx)
             pdOptionQuotesIdx[hash_idx] = row
 
@@ -151,10 +149,9 @@ def loadBasicData(startingDir):
         except OSError as e:
             print("Error: %s : %s" % (startingDir, e.strerror))
     else:
-        # 6b. loose files, zip it up
-        new_zip_file = startingDir + ".zip"
-        FileUtil.zip_and_delete(directory=startingDir, file_prefix=config["stock"], zip_file_name=new_zip_file)
-        #FileUtil.zip_and_delete(startingDir, config["stock"])
+        # 6b. loose files, zip it up  oq_FB211203C00305000_20211201.csv
+        FileUtil.zip_and_delete(directory=startingDir, stock_symbol_in_file_name=config["stock"],
+                                file_prefix_tuple=('sq_', 'oq_', 'ol_'), zip_file_name=zipFilename)
 
     # 7. Done!!
     return True
@@ -164,10 +161,10 @@ def main(dirName):
     global pdStockQuotes, pdOptionList, pdOptionQuotesIdx
     global running_missing, running_total, total_lookup, config
 
-    outfile = dirName + "/projection_stock_call_options_" + config["stock"] + ".csv"
+    outfile = dirName + "/ml_cp18_" + config["stock"] + getDateStrFromPath(dirName) + ".csv"
     print("Processing directory ", dirName, "to outfile", outfile)
     if os.path.exists(outfile):
-        print("outfile exist, skipping directory")
+        print(f"\tAssessment File Exist, skipping directory: {outfile}")
         return
 
     if not loadBasicData(dirName):
@@ -179,19 +176,21 @@ def main(dirName):
 
     # Section
     start = timer()
-    # pdStockQuotes = pdStockQuotes.head(1000)
-    df = pdStockQuotes.apply(lambda x: expandX(x['Time'], x['ConId'], x['Last']), axis=1, result_type='expand')
+    dStockQuotes = pdStockQuotes.head(1000)
+    df = pdStockQuotes.apply(lambda x: expandX(x['time'], x['con_id'], x['last']), axis=1, result_type='expand')
 
-    df.set_index('Time')
+    #pprint(pdStockQuotes.columns)
+    #pprint(df.columns)
+    #df.set_index('time')
     end = timer()
     log.info("TIME: Projecting: ")
     log.info(timedelta(seconds=end - start))
 
     # Section
     log.info(" Starting Joining")
-    projection = pdStockQuotes.merge(df, on="Time", how="outer")
+    projection = pdStockQuotes.merge(df, on="time", how="outer")
 
-    projection.to_csv(outfile, float_format='%.6f')
+    projection.to_csv(outfile, float_format='%.6f', index=False)
 
     log.info("Done!")
 
@@ -216,13 +215,17 @@ if __name__ == "__main__":
             if not os.path.isdir(scan_dir):
                 print("Input path does not seem to exist / as a dir ", scan_dir, os.getcwd() + "/" + sys.argv[2])
                 sys.exit(0)
-        if glob.glob(scan_dir + "/" + config["stock"] + 'optionList*.csv'):
+        search_mask1 = scan_dir + "/ol_" + config["stock"] + '*.csv'
+        search_mask2 = scan_dir + "/" + config["stock"] + '*.zip'
+        if glob.glob(search_mask1) or glob.glob(search_mask2):
             main(scan_dir)
     else:
         print("Scanning start directory: " + scan_dir)
         for rootdir, dirs, files in os.walk(scan_dir):
             for subdir in dirs:
                 full_dir = os.path.join(rootdir, subdir)
-                if glob.glob(full_dir + "/" + config["stock"] + 'optionList*.csv'):
+                search_mask1 = full_dir + "/ol_" + config["stock"] + '*.csv'
+                search_mask2 = full_dir + "/" + config["stock"] + '*.zip'
+                if glob.glob(search_mask1) or glob.glob(search_mask2):
                     main(full_dir)
 

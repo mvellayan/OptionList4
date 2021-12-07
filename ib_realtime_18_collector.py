@@ -17,7 +17,6 @@ from utils import FileUtil, IBUtil
 
 #
 # see: https://github.com/erdewit/ib_insync
-from utils.FileUtil import setup_logging
 
 queues = {}
 queues_start_time = datetime.now()

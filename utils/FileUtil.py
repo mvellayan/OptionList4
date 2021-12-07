@@ -73,10 +73,10 @@ def get_quote_with_delta(stockQuotes, quoteTime: datetime, delta: int):
         newDate = dateAdd(quoteTime, seconds=(delta+iter))
         lastTrade = stock_quote_cache.get(newDate, -1)
         if lastTrade > -1: return lastTrade
-        df = stockQuotes.query("Time == " + newDate)
+        df = stockQuotes.query("time == " + newDate)
         if df.shape[0] > 0:
             stock_quote_cache[newDate] = lastTrade
-            lastTrade = df["Last"].iloc[0]
+            lastTrade = df["last"].iloc[0]
             break
     return lastTrade
 
@@ -118,14 +118,17 @@ def getStrFromDate(inTime: datetime, in_format: str="YYYYMMDDHHMMSS"):
 
 # Example call
 # zip_and_delete('/Users/Muthu/Development/OptionList4/IBdata/2021/11/12/test', 'FB')
-def zip_and_delete(directory, file_prefix, zip_file_name):
+def zip_and_delete(directory, stock_symbol_in_file_name,  zip_file_name, file_prefix_tuple=""):
     cwd = os.getcwd()
     os.chdir(os.path.dirname(directory))
 
-    with zipfile.ZipFile(file=zip_file_name, mode="a", compression=zipfile.ZIP_DEFLATED, allowZip64=True) as zf:
+    with zipfile.ZipFile(file=zip_file_name, mode="a", compression=zipfile.ZIP_LZMA, allowZip64=True) as zf:
         for root, foo2, filenames in os.walk(os.path.basename(directory)):
             for name in filenames:
-                if name.startswith(file_prefix) and name.endswith(".csv") and ".zip" not in name:
+                if stock_symbol_in_file_name in name \
+                        and name.startswith(file_prefix_tuple) \
+                        and name.endswith(".csv") \
+                        and not name.endswith(".zip"):
                     name2 = os.path.join(root, name)
                     name2 = os.path.normpath(name2)
                     zf.write(name2, name)
@@ -138,6 +141,38 @@ def zip_and_delete(directory, file_prefix, zip_file_name):
 def unzip_file(directory, zip_file_name):
     with zipfile.ZipFile(zip_file_name, 'r') as zip_ref:
         zip_ref.extractall(directory)
+
+
+# send in '/Users/Muthu/Development/OptionList4/IBdata/2021/12/06/ml_cp18_AAPL.csv
+# out date 20211206
+def getDateStrFromPath(path):
+    path_arr = path.split("/")
+    path_arr.reverse()
+
+    st = 0
+    # search up 3 in path
+
+    for xc in range(0, len(path_arr)-3):
+        if len(path_arr[st + xc]) == 2 and path_arr[st].isnumeric():
+            day = path_arr[st + xc]
+            st = st + xc + 1
+            break
+
+    if day == 0:
+        raise Exception(f"last 2 components are not integers {path}. Cant find day of month")
+
+    if len(path_arr[st]) == 2 and path_arr[st].isnumeric():
+        month = path_arr[st]
+        st += 1
+    else:
+        raise Exception(f"can't find month {path}")
+
+    if len(path_arr[st]) == 4 and path_arr[st].isnumeric():
+        year = path_arr[st]
+    else:
+        raise Exception(f"Cant find year {path}")
+
+    return f"{year}{month}{day}"
 
 
 def getDateTimeStamp(format_type=1):
@@ -230,17 +265,6 @@ def unit_test():
     assert 5*23400 == get_sec_to_expire(getDateObjFromStr("20211114083000"), getDateObjFromStr("20211120123000"))
     assert 5*23400 == get_sec_to_expire(getDateObjFromStr("20211114083000"), getDateObjFromStr("20211121123000"))
     assert 6*23400 == get_sec_to_expire(getDateObjFromStr("20211114083000"), getDateObjFromStr("20211122123000"))
-
-
-def setup_logging(fn="logs/py-log.log", size=1000000):
-    # log.basicConfig(filename="../logs/"+fn, format='%(asctime)s-%(threadName)s-%(levelname)s: %(message)s')
-    log.basicConfig(handlers=[RotatingFileHandler(fn, maxBytes=size, backupCount=3)],
-                        format="[%(asctime)s] %(threadName)s %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s",
-                        datefmt='%Y-%m-%dT%H:%M:%S')
-    log.Formatter.converter = time.localtime
-    log.setLevel(logging.INFO)
-    log.propagate = False
-
 
 def compressCSVFiles(dir):
     ctr: int = 0

@@ -9,7 +9,7 @@ from timeit import default_timer as timer
 from datetime import timedelta
 
 from utils import FileUtil, IBUtil
-from utils.FileUtil import makeDirectory, unzip_file, get_sec_to_expire, setup_logging
+from utils.FileUtil import makeDirectory, unzip_file, get_sec_to_expire
 
 logging.basicConfig(level=logging.ERROR)
 log = logging.getLogger("myLogger")
@@ -107,7 +107,7 @@ def process_directory(full_dir_name):
         print(f"\tfor directory {temp_dir}, processed {file_ctr} files")
         # 4. zip it back up as fixed.zip
         new_zip_file = zip_file.replace(".zip", "_f1204.zip")
-        FileUtil.zip_and_delete(directory=temp_dir, file_prefix="", zip_file_name=new_zip_file)
+        FileUtil.zip_and_delete(directory=temp_dir, stock_symbol_in_file_name="", zip_file_name=new_zip_file)
         # 5. delete old zip and rename new zip to old file
         os.remove(zip_file)
         os.rename(new_zip_file, zip_file)

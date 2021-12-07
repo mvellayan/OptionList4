@@ -20,7 +20,6 @@ log = logging.getLogger("myLogger")
 
 #
 # see: https://github.com/erdewit/ib_insync
-from utils.FileUtil import setup_logging
 
 ## Globals
 queues = {}

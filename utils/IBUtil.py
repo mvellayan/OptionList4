@@ -10,7 +10,7 @@ import pandas as pd
 from ib_insync import *
 
 from utils import FileUtil
-from utils.FileUtil import makeDataFileName, setup_logging
+from utils.FileUtil import makeDataFileName
 
 log = logging.getLogger("myLogger")
 
