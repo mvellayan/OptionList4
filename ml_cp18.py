@@ -1,3 +1,4 @@
+import argparse
 import logging
 import shutil
 from datetime import datetime, timedelta, date
@@ -157,18 +158,18 @@ def loadBasicData(startingDir):
     return True
 
 
-def main(dirName):
+def main(scan_data_dir):
     global pdStockQuotes, pdOptionList, pdOptionQuotesIdx
     global running_missing, running_total, total_lookup, config
 
-    outfile = dirName + "/ml_cp18_" + config["stock"] + getDateStrFromPath(dirName) + ".csv"
-    print("Processing directory ", dirName, "to outfile", outfile)
+    outfile = out_dir + "ml_cp18_" + config["stock"] + getDateStrFromPath(scan_data_dir) + ".csv"
+    print(f"Processing data directory {scan_data_dir} to outfile {outfile}")
     if os.path.exists(outfile):
         print(f"\tAssessment File Exist, skipping directory: {outfile}")
         return
 
-    if not loadBasicData(dirName):
-        log.error("Cant find data in this dir: " + dirName)
+    if not loadBasicData(scan_data_dir):
+        log.error("Cant find data in this dir: " + scan_data_dir)
         return
 
     running_total = running_missing = 0
@@ -195,37 +196,52 @@ def main(dirName):
     log.info("Done!")
 
 
+def collect_args() -> dict:
+    """Collect arguments passed into the script
+
+    Returns:
+        dict: Arguments Object
+    """
+    parser = argparse.ArgumentParser(
+        description='Collect per second Realtime Data for a stock + 18 related options')
+
+    parser.add_argument('config', help='JSON file that contains all the configuration',
+                        default="config.json", type=str)
+    parser.add_argument('scan_dir', help='Data file directory to scan.  Added to current path',
+                        default="/IBdata/", type=str)
+    parser.add_argument('out_dir', help='Directory write output.  Added to current path',
+                        default="/ml_cp18/", type=str)
+    retDict = parser.parse_args()
+
+    if not retDict.scan_dir.startswith("/"):
+        retDict.scan_dir = "/" + retDict.scan_dir
+    if not retDict.scan_dir.endswith("/"):
+        retDict.scan_dir = retDict.scan_dir + "/"
+
+    if not retDict.out_dir.startswith("/"):
+        retDict.out_dir = "/" + retDict.out_dir
+    if not retDict.out_dir.endswith("/"):
+        retDict.out_dir = retDict.out_dir + "/"
+    pprint(retDict)
+
+    return retDict
+
+
 if __name__ == "__main__":
 
     pd.set_option('display.max_columns', None)
-    if len(sys.argv) < 2:
-        pprint("\n\nUsage: project.py <config_file.yml>\n\n")
-        sys.exit(0)
-    else:
-        print("using config file [" + sys.argv[1] + "]")
+    args = collect_args()
 
-    config = FileUtil.readConfig(sys.argv[1])
+    config = FileUtil.readConfig(args.config)
+    scan_dir = os.getcwd() + args.scan_dir
+    out_dir = os.getcwd() + args.out_dir
 
-    scan_dir = os.getcwd() + "/IBdata"
-
-    if len(sys.argv) == 3:
-        scan_dir = os.getcwd() + "/" + sys.argv[2]
-        if not os.path.isdir(scan_dir):
-            scan_dir = sys.argv[2]
-            if not os.path.isdir(scan_dir):
-                print("Input path does not seem to exist / as a dir ", scan_dir, os.getcwd() + "/" + sys.argv[2])
-                sys.exit(0)
-        search_mask1 = scan_dir + "/ol_" + config["stock"] + '*.csv'
-        search_mask2 = scan_dir + "/" + config["stock"] + '*.zip'
-        if glob.glob(search_mask1) or glob.glob(search_mask2):
-            main(scan_dir)
-    else:
-        print("Scanning start directory: " + scan_dir)
-        for rootdir, dirs, files in os.walk(scan_dir):
-            for subdir in dirs:
-                full_dir = os.path.join(rootdir, subdir)
-                search_mask1 = full_dir + "/ol_" + config["stock"] + '*.csv'
-                search_mask2 = full_dir + "/" + config["stock"] + '*.zip'
-                if glob.glob(search_mask1) or glob.glob(search_mask2):
-                    main(full_dir)
+    print("Scanning start directory: " + scan_dir)
+    for rootdir, dirs, files in os.walk(scan_dir):
+        for subdir in dirs:
+            full_dir = os.path.join(rootdir, subdir)
+            search_mask1 = full_dir + "/ol_" + config["stock"] + '*.csv'
+            search_mask2 = full_dir + "/" + config["stock"] + '*.zip'
+            if glob.glob(search_mask1) or glob.glob(search_mask2):
+                main(full_dir)
 

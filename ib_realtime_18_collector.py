@@ -201,7 +201,6 @@ def collect_args() -> dict:
 
 if __name__ == "__main__":
     args = collect_args()
-    print(json.dumps(args, indent=4, default=str))
 
     logging.basicConfig(level=logging.ERROR)
     log = logging.getLogger('myLogger')
