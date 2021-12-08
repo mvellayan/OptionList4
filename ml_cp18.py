@@ -43,7 +43,13 @@ def expandX(quoteTime, conId, quoteLast):
     retDict["p15s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 15)
     retDict["p30s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 30)
     retDict["p60s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 60)
+    if retDict["p60s"]:
+        retDict["p60p10"] = (retDict["p60s"] - retDict["p0"] > 0.10)
     retDict["p300s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 300)
+    if retDict["p300s"]:
+        retDict["p300p10"] = (retDict["p300s"] - retDict["p0"] > 0.10)
+        retDict["p300p25"] = (retDict["p300s"] - retDict["p0"] > 0.25)
+        retDict["p300p50"] = (retDict["p300s"] - retDict["p0"] > 0.50)
     retDict["p600s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 600)
     retDict["p900s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 900)
 
@@ -106,7 +112,7 @@ def loadBasicData(startingDir):
     for file in glob.glob(startingDir + "/sq_" + symbol + "_" + "*csv"):
         curPd = pd.read_csv(file)
         # Store only 9:25 to 16:10 data for quotes
-        curPd = curPd[(curPd['time'] % 1000000).between(92500, 161000)]
+        curPd = curPd[(curPd['time'] % 1000000).between(93000, 160000)]
         if pdStockQuotes is None:
             pdStockQuotes = curPd
         else:
@@ -135,7 +141,7 @@ def loadBasicData(startingDir):
     for file in glob.glob(startingDir + "/oq_" + symbol + "*csv"):
         curPd = pd.read_csv(file)
         # Store only 9:25 to 16:10 data for quotes
-        curPd = curPd[(curPd['time'] % 1000000).between(92500, 161000)]
+        curPd = curPd[(curPd['time'] % 1000000).between(93000, 160000)]
         for index, row in curPd.iterrows():
             hash_idx = str(row.con_id) + ":" + str(row.time)
             # print (index, '->', row, '==>', hash_idx)
@@ -163,7 +169,7 @@ def main(scan_data_dir):
     global running_missing, running_total, total_lookup, config
 
     outfile = out_dir + "ml_cp18_" + config["stock"] + getDateStrFromPath(scan_data_dir) + ".csv"
-    print(f"Processing data directory {scan_data_dir} to outfile {outfile}")
+    print(f"\nProcessing {scan_data_dir} => {outfile}")
     if os.path.exists(outfile):
         print(f"\tAssessment File Exist, skipping directory: {outfile}")
         return
@@ -236,7 +242,7 @@ if __name__ == "__main__":
     scan_dir = os.getcwd() + args.scan_dir
     out_dir = os.getcwd() + args.out_dir
 
-    print("Scanning start directory: " + scan_dir)
+    print("Scanning: " + scan_dir)
     for rootdir, dirs, files in os.walk(scan_dir):
         for subdir in dirs:
             full_dir = os.path.join(rootdir, subdir)

@@ -69,16 +69,20 @@ stock_quote_cache = {}
 def get_quote_with_delta(stockQuotes, quoteTime: datetime, delta: int):
     global stock_quote_cache
     lastTrade = None
-    for iter in range(3):
-        newDate = dateAdd(quoteTime, seconds=(delta+iter))
-        lastTrade = stock_quote_cache.get(newDate, -1)
+    for iter in range(5):
+        date_index = dateAdd(quoteTime, seconds=(delta+iter))
+        lastTrade = stock_quote_cache.get(date_index, -1)
         if lastTrade > -1: return lastTrade
-        df = stockQuotes.query("time == " + newDate)
+        df = stockQuotes.query("time == " + date_index)
         if df.shape[0] > 0:
-            stock_quote_cache[newDate] = lastTrade
+            stock_quote_cache[date_index] = lastTrade
             lastTrade = df["last"].iloc[0]
             break
-    return lastTrade
+
+    if lastTrade > 0:
+        return lastTrade
+    else:
+        return None
 
 
 def dateAdd(inDate: datetime, minutes: int = 0, seconds: int = 0):
@@ -122,9 +126,17 @@ def zip_and_delete(directory, stock_symbol_in_file_name,  zip_file_name, file_pr
     cwd = os.getcwd()
     os.chdir(os.path.dirname(directory))
 
-    with zipfile.ZipFile(file=zip_file_name, mode="a", compression=zipfile.ZIP_LZMA, allowZip64=True) as zf:
+    with zipfile.ZipFile(file=zip_file_name, mode="a", compression=zipfile.ZIP_DEFLATED, allowZip64=True) as zf:
         for root, foo2, filenames in os.walk(os.path.basename(directory)):
             for name in filenames:
+
+                if stock_symbol_in_file_name in name \
+                        and ".csv" in name \
+                        and "ol_" in name \
+                        and name[-6:].isnumeric():
+                    print(f"removing file {directory}/{name}")
+                    os.remove(directory + "/" + name)
+
                 if stock_symbol_in_file_name in name \
                         and name.startswith(file_prefix_tuple) \
                         and name.endswith(".csv") \
@@ -134,7 +146,7 @@ def zip_and_delete(directory, stock_symbol_in_file_name,  zip_file_name, file_pr
                     zf.write(name2, name)
                     os.remove(directory + "/" + name)
                 else:
-                    log.info("Skipping file: " + name)
+                    log.info("\t\tSkipping file: " + name)
     os.chdir(cwd)
 
 
