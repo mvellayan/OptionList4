@@ -183,7 +183,6 @@ def main(scan_data_dir):
 
     # Section
     start = timer()
-    dStockQuotes = pdStockQuotes.head(1000)
     df = pdStockQuotes.apply(lambda x: expandX(x['time'], x['con_id'], x['last']), axis=1, result_type='expand')
 
     #pprint(pdStockQuotes.columns)

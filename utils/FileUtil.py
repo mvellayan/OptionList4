@@ -67,17 +67,18 @@ def makeDirectory(fileName):
 
 stock_quote_cache = {}
 def get_quote_with_delta(stockQuotes, quoteTime: datetime, delta: int):
+
+    ## one time load cache.
     global stock_quote_cache
+    if len(stock_quote_cache) == 0:
+        for index, row in stockQuotes.iterrows():
+            stock_quote_cache[ row['time'] ] = row['last']
+
     lastTrade = None
-    for iter in range(5):
-        date_index = dateAdd(quoteTime, seconds=(delta+iter))
+    for iter in range(0,5):
+        date_index : int = int(dateAdd(quoteTime, seconds=(delta+iter)))
         lastTrade = stock_quote_cache.get(date_index, -1)
         if lastTrade > -1: return lastTrade
-        df = stockQuotes.query("time == " + date_index)
-        if df.shape[0] > 0:
-            stock_quote_cache[date_index] = lastTrade
-            lastTrade = df["last"].iloc[0]
-            break
 
     if lastTrade > 0:
         return lastTrade
