@@ -60,8 +60,10 @@ def get_filtered_contract_list(ib, config, quoteAmt: float = 0.0, force_pull=Fal
     #self, reqId, contract, genericTickList, snapshot, regulatorySnapshot, mktDataOptions):
     if quoteAmt == 0:
         data = ib.reqMktData(contract=stk, snapshot=True)
-        while data.last != data.last:
+        ctr = 0
+        while data.last != data.last and ctr < 100:
             ib.sleep(0.01)  # Wait until data is in.
+            ctr += 1
         quoteAmt = data.last
         log.info("Using last quote:")
     log.info(quoteAmt)

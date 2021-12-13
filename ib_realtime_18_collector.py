@@ -1,6 +1,6 @@
 import argparse
 import json
-import os, psutil
+import os, psutil, sys
 import subprocess
 from pprint import pprint
 from pprint import pformat
@@ -86,26 +86,14 @@ def check_IB_conneciton_broke(ib, msg: str):
             '" --message "' + msg + '"'
         log.info("emailing command: " + email_notification)
         os.system(email_notification)
-        exit(0)
+        sys.exit(0)
     elif not isTradingHours:
         log.info("Not trading hours.  Stopping. " + msg)
-        current_system_pid = os.getpid()
-
-        ThisSystem = psutil.Process(current_system_pid)
-        ThisSystem.terminate()
-        #if isConnected:
-        #    ib.disconnect()
-        #exit(0)
-        #os.kill(os.getpid(), signal.SIGINT)
-        return True
+        sys.exit(0)
     else:
         # Should not get here.
-        log.info("Unexpected situation isConnected[")
-        log.info(isConnected)
-        log.info("] and is_trading_hours[")
-        log.info(isTradingHours)
-        log.info(msg)
-        exit(0)
+        log.info(f"Unexpected situation isConnected[{isConnected}] and is_trading_hours[{isTradingHours} {msg}")
+        sys.exit(0)
     return False
 
 
@@ -125,7 +113,7 @@ def writeQuotesToFile(arg):
 def main():
     global config, contracts
 
-    writeThread = threading.Thread(target=writeQuotesToFile, args=(1,))
+    writeThread = threading.Thread(target=writeQuotesToFile, args=(1,), daemon=True)
     writeThread.start()
 
     log.info("Connecting to ip [" + config["tws_host"] + "] port[" + str(config["tws_port"])
