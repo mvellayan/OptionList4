@@ -58,7 +58,7 @@ def fix_csv_file(full_file_name):
             first_line == "con_id,symbol,time,bid,bid_size,ask,ask_size,last,last_size,volume,hist_volatility,implied_volatility":
         # rename file w/ sq_ or oq_
         first_line_arr = first_line.split(",")
-        if first_line_arr[1] != "symbol":
+        if first_line_arr[1].lower() != "symbol":
             raise Exception(f"Unexpected quote file format: {first_line}")
         second_line_arr = second_line.split(",")
         if len(second_line_arr[1]) > 10:
