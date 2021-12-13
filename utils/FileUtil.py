@@ -43,8 +43,8 @@ def makeDataFileName(inputFileName, addTimestamp=True):
     # making contract name to file name:
     # outputFileName = ''.join(re.findall('[a-zA-Z0-9]+', inputFileName))
     fileName = "./IBdata/" + year_str + "/" + month_str + "/" + day_str + "/" + inputFileName
-    fileName.replace(' ', '_', 1)
-    fileName.replace(' ', '')
+    fileName = fileName.replace(' ', '_', 1)
+    fileName = fileName.replace(' ', '')
     if addTimestamp:
         fileName += "_" + year_str + month_str + day_str # + "_" + time_str
     fileName += '.csv'
