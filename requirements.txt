@@ -5,6 +5,7 @@ ipython
 pandas
 matplotlib
 openpyxl
+psutil
 #
 # from threading import Thread, Condition
 # import time

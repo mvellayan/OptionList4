@@ -1,6 +1,6 @@
 import argparse
 import json
-import os
+import os, psutil
 import subprocess
 from pprint import pprint
 from pprint import pformat
@@ -89,9 +89,13 @@ def check_IB_conneciton_broke(ib, msg: str):
         exit(0)
     elif not isTradingHours:
         log.info("Not trading hours.  Stopping. " + msg)
-        if isConnected:
-            ib.disconnect()
-        exit(0)
+        current_system_pid = os.getpid()
+
+        ThisSystem = psutil.Process(current_system_pid)
+        ThisSystem.terminate()
+        #if isConnected:
+        #    ib.disconnect()
+        #exit(0)
         #os.kill(os.getpid(), signal.SIGINT)
         return True
     else:
