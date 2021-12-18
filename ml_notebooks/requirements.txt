@@ -1,0 +1,19 @@
+ib_insync
+schedule
+bs4
+ipython
+pandas
+matplotlib
+openpyxl
+psutil
+tensorflow
+keras
+###############
+## Needed from ml
+#  sklearn
+#  xgboost
+#  Jupyter
+# from threading import Thread, Condition
+# import time
+# import random
+# import csv
