@@ -44,12 +44,10 @@ def expandX(quoteTime, conId, quoteLast):
     retDict["p30s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 30)
     retDict["p60s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 60)
     if retDict["p60s"]:
-        retDict["p60p10"] = (retDict["p60s"] - retDict["p0"] > 0.10)
+        retDict["p60s_delta"] = (retDict["p60s"] - retDict["p0"])
     retDict["p300s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 300)
     if retDict["p300s"]:
-        retDict["p300p10"] = (retDict["p300s"] - retDict["p0"] > 0.10)
-        retDict["p300p25"] = (retDict["p300s"] - retDict["p0"] > 0.25)
-        retDict["p300p50"] = (retDict["p300s"] - retDict["p0"] > 0.50)
+        retDict["p300s_delta"] = (retDict["p300s"] - retDict["p0"])
     retDict["p600s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 600)
     retDict["p900s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 900)
 
@@ -77,19 +75,24 @@ def expandX(quoteTime, conId, quoteLast):
             dur = get_sec_to_expire(
                 FileUtil.getDateObjFromStr(quoteTime),
                 FileUtil.getDateObjFromStr(contract.lastTradeDateOrContractMonth,'YYYYMMDD'))
-            theta = (tv / dur) * 100 * 1000 # 100 = cents, 100 = basis point
-            retDict[listLabel[index] + "_" + "symbol"] = res["symbol"]
-            retDict[listLabel[index] + "_" + "ask"] = res["ask"]
+            if dur == 0 or tv == 0:
+                theta =  0
+            else:
+                theta = (tv / dur) * 100 * 1000 # 100 = cents, 100 = basis point
+            # retDict[listLabel[index] + "_" + "symbol"] = res["symbol"]
+            retDict[listLabel[index] + "_" + "bid_ask_delta"] = res["bid"] - res["ask"]
+            # retDict[listLabel[index] + "_" + "ask"] = res["ask"]
             retDict[listLabel[index] + "_" + "ask_size"] = res["ask_size"]
-            retDict[listLabel[index] + "_" + "bid"] = res["bid"]
+            # retDict[listLabel[index] + "_" + "bid"] = res["bid"]
             retDict[listLabel[index] + "_" + "bid_size"] = res["bid_size"]
-            retDict[listLabel[index] + "_" + "last"] = res["last"]
+            # retDict[listLabel[index] + "_" + "last"] = res["last"]
             retDict[listLabel[index] + "_" + "last_size"] = res["last_size"]
-            retDict[listLabel[index] + "_" + "strike"] = contract.strike
-            retDict[listLabel[index] + "_" + "strike_delta"] = quoteLast - contract.strike
-            retDict[listLabel[index] + "_" + "time_value"] = tv
+            # retDict[listLabel[index] + "_" + "strike"] = contract.strike
+            if index == 0:
+                retDict[listLabel[index] + "_" + "strike_delta"] = quoteLast - contract.strike
+            # retDict[listLabel[index] + "_" + "time_value"] = tv
             retDict[listLabel[index] + "_" + "theta"] = theta
-            retDict[listLabel[index] + "_" + "implied_volatility"] = res["implied_volatility"]
+            # retDict[listLabel[index] + "_" + "implied_volatility"] = res["implied_volatility"]
         index += 1
 
     return retDict
@@ -117,6 +120,7 @@ def loadBasicData(startingDir):
             pdStockQuotes = curPd
         else:
             pdStockQuotes = pdStockQuotes.append(curPd, ignore_index=True)
+    pdStockQuotes["bid_ask_delta"] = pdStockQuotes["bid"] - pdStockQuotes["ask"]
 
     # No files in the directory
     if pdStockQuotes is None:
@@ -181,25 +185,44 @@ def main(scan_data_dir):
     running_total = running_missing = 0
     total_lookup = len(pdStockQuotes) * 18
 
+    # TODO remove this line
+    # pdStockQuotes = pdStockQuotes.head(10000)
     # Section
-    start = timer()
     df = pdStockQuotes.apply(lambda x: expandX(x['time'], x['con_id'], x['last']), axis=1, result_type='expand')
 
     #pprint(pdStockQuotes.columns)
     #pprint(df.columns)
     #df.set_index('time')
-    end = timer()
-    log.info("TIME: Projecting: ")
-    log.info(timedelta(seconds=end - start))
 
-    # Section
-    log.info(" Starting Joining")
+    pdStockQuotes.drop(axis=1, columns=['con_id', 'symbol', 'bid', 'ask', 'last', 'hist_volatility', 'implied_volatility'],
+                       inplace=True)
+    df.drop(axis=1, columns=['p0', 'p15s', 'p30s', 'p60s', 'p300s', 'p600s', 'p900s'], inplace=True)
+
     projection = pdStockQuotes.merge(df, on="time", how="outer")
+    # for col in projection.columns: print(f"{ctr}: {col}")
 
+    # projection['p60s_delta_quantile'] = projection.qcut('s' + df['p60s_delta'], 7, labels=False)
+    ctr = 0
+    labels = []
+    for v in projection['p60s_delta'].quantile((1 / 7, 2 / 7, 3 / 7, 4 / 7, 5 / 7, 6 / 7, 1)).tolist():
+        labels.append(f"q_{ctr}_{v:.2f}")
+        ctr += 1
+    projection['p60s_bucket_category'] = pd.qcut(df['p60s_delta'], 7, labels=labels)
+
+    # projection['p300s_delta_quantile'] = projection.qcut('s' + df['p300s_delta'], 7, labels=False)
+    ctr = 0
+    labels = []
+    for v in projection['p300s_delta'].quantile((1 / 7, 2 / 7, 3 / 7, 4 / 7, 5 / 7, 6 / 7, 1)).tolist():
+        labels.append(f"q_{ctr}_{v:.2f}")
+        ctr += 1
+    projection['p300s_bucket_category'] = pd.qcut(df['p300s_delta'], 7, labels=labels)
+
+
+    projection.drop(axis=1, columns=['time', 'p60s_delta', 'p300s_delta'], inplace=True)
+    projection.dropna(axis=0, how='any', inplace=True)
     projection.to_csv(outfile, float_format='%.6f', index=False)
-
     log.info("Done!")
-
+    sys.exit(1)
 
 def collect_args() -> dict:
     """Collect arguments passed into the script
