@@ -2,11 +2,13 @@ version: "3.9"
 services:
   ml:
     image: ml:latest
-    command: python3 ib_realtime_18_collector.py config/config-fb.json 
-#   restart: always
+    build: .
+    # command: python3 ib_realtime_18_collector.py config/config-fb.json 
+#   retart: always
     ports:
       - "8888:8888"
     volumes:
       - ./ml_cp18:/ml_cp18
+      - ./:/tf/ml_notebooks
       - ./logs:/logs
-#   network_mode: "host"
+#    network_mode: "host"

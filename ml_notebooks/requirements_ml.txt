@@ -1,0 +1,16 @@
+ib_insync
+schedule
+bs4
+ipython
+pandas
+matplotlib
+openpyxl
+psutil
+tensorflow
+keras
+pycm
+###############
+## Needed from ml
+sklearn
+xgboost
+#Jupyter

@@ -13,7 +13,7 @@ FROM tensorflow/tensorflow:latest-jupyter
 WORKDIR /IBapp
 
 COPY requirements_ml.txt .
-RUN pip install --file requirements_ml.txt
-# COPY . .
+RUN pip install -r ./requirements_ml.txt
+COPY jupyter_notebook_config.py /root/.jupyter/
 
 # CMD [ "python3", "realtime_data_collector.py", "config/config-fb.json" ]
