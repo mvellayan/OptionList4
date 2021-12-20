@@ -1,13 +1,16 @@
-ib_insync
-schedule
+## Needed from ml
+#Jupyter
 bs4
+ib_insync
 ipython
-pandas
+# keras
 matplotlib
 openpyxl
+pandas
 psutil
-#
-# from threading import Thread, Condition
-# import time
-# import random
-# import csv
+pycm
+schedule
+seaborn
+sklearn
+# tensorflow
+xgboost

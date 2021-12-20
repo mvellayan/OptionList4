@@ -1,16 +1,16 @@
-ib_insync
-schedule
+## Needed from ml
+#Jupyter
 bs4
+ib_insync
 ipython
-pandas
+keras
 matplotlib
 openpyxl
+pandas
 psutil
-tensorflow
-keras
 pycm
-###############
-## Needed from ml
+schedule
+seaborn
 sklearn
+tensorflow
 xgboost
-#Jupyter
