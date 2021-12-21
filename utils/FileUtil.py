@@ -42,7 +42,9 @@ def makeDataFileName(inputFileName, addTimestamp=True):
     time_str = now.strftime("%H%M%S")
     # making contract name to file name:
     # outputFileName = ''.join(re.findall('[a-zA-Z0-9]+', inputFileName))
-    fileName = "./IBdata/" + year_str + "/" + month_str + "/" + day_str + "/" + inputFileName
+    prefix = "sq_"
+    if len(inputFileName) > 5 : prefix = "oq_"
+    fileName = "./IBdata/" + year_str + "/" + month_str + "/" + day_str + "/" + prefix + inputFileName
     fileName = fileName.replace(' ', '_', 1)
     fileName = fileName.replace(' ', '')
     if addTimestamp:
