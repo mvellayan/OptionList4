@@ -47,7 +47,7 @@ def makeDataFileName(inputFileName, addTimestamp=True):
         prefix = ""
     elif len(inputFileName) > 5:
         prefix = "oq_"
-    else
+    else:
         prefix = "sq_"
 
     fileName = "./IBdata/" + year_str + "/" + month_str + "/" + day_str + "/" + prefix + inputFileName

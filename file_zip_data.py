@@ -57,7 +57,6 @@ if __name__ == "__main__":
 
     print("Scanning: " + data_dir)
     for rootdir, dirs, files in os.walk(data_dir):
-        print (f"{rootdir} {dirs} {files}")
         for subdir in dirs:
             full_dir = os.path.join(rootdir, subdir)
             search_mask1 = full_dir + "/*" + config["stock"] + '*.csv'
