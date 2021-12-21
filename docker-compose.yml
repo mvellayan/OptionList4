@@ -2,8 +2,10 @@ version: "3.9"
 services:
   fb:
     image: ol4:latest
+    build: .
     command: python3 ib_realtime_18_collector.py config/config-fb.json 
 #   restart: always
+    user: "${UID}:${GID}"
     volumes:
       - ./IBdata:/IBapp/IBdata
       - ./logs:/logs
@@ -13,6 +15,7 @@ services:
     image: ol4:latest
     command: python3 ib_realtime_18_collector.py config/config-aapl.json
 #   restart: always
+    user: "${UID}:${GID}"
     volumes:
       - ./IBdata:/IBapp/IBdata
       - ./logs:/logs
