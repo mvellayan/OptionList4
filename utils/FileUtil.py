@@ -145,9 +145,10 @@ def zip_and_delete(directory, stock_symbol_in_file_name,  zip_file_name, file_pr
                     name2 = os.path.join(root, name)
                     name2 = os.path.normpath(name2)
                     zf.write(name2, name)
+                    print(f"removing file {directory}/{name}")
                     os.remove(directory + "/" + name)
                 else:
-                    log.info("\t\tSkipping file: " + name)
+                    log.info(f"\t\tSkipping file: {name} stock_symbol_in_file_name={stock_symbol_in_file_name} file_prefix_tuple={file_prefix_tuple}")
     os.chdir(cwd)
 
 
@@ -178,7 +179,8 @@ def getDateStrFromPath(path):
         month = path_arr[st]
         st += 1
     else:
-        raise Exception(f"can't find month {path}")
+        print(path)
+        raise Exception("can't find month from path: " + path)
 
     if len(path_arr[st]) == 4 and path_arr[st].isnumeric():
         year = path_arr[st]
