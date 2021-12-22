@@ -12,13 +12,11 @@ from utils.IBUtil import get_options_list_file_name
 config = {}
 ib = IB()
 
-def main(configFileName):
-    global config
-    config = FileUtil.readConfig(configFileName)
+def main(config):
 
-    print("Connecting to ip [", config["tws_host"], "] port[", config["tws_port"], "] clientId [", config["tws_port"], "]")
+    print(f"Connecting to ip [{config['tws']['host']}] port[{config['tws']['port']}]")
     try:
-        ib.connect(config["tws_host"], config["tws_port"], clientId=config["tws_port"])
+        ib.connect(config['tws']['host'], config['tws']['port'], clientId=config['tws']['port'])
     except BaseException as err:
         print(f"Unexpected {err=}, {type(err)=}")
         raise NameError("Cannot connect to IB")
@@ -30,10 +28,7 @@ def main(configFileName):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("\n\nUsage: collect_data.py <config_file.yml>\n\n")
-        sys.exit(0)
-    else:
-        print("using config file [" + sys.argv[1] + "]")
 
-    main(sys.argv[1])
+    config = FileUtil.readConfig(sys.argv[1])
+
+    main(config)

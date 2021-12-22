@@ -101,7 +101,7 @@ def writeQuotesToFile(arg):
     global queues_start_time, contracts
     while True:
         time.sleep(60) # Sleep 1 minute
-        if (datetime.now() - queues_start_time).total_seconds() >= config["file_flush_seconds"]:
+        if (datetime.now() - queues_start_time).total_seconds() >= config["tws"]["quotes_flush_to_file_seconds"]:
             log.info("writeQuotesToFile for " + config["stock"])
             queues_start_time = datetime.now()
             saveDataInCSV()
@@ -116,10 +116,9 @@ def main():
     writeThread = threading.Thread(target=writeQuotesToFile, args=(1,), daemon=True)
     writeThread.start()
 
-    log.info("Connecting to ip [" + config["tws_host"] + "] port[" + str(config["tws_port"])
-             + "] clientId [" + str(config["tws_port"]) + "]")
+    log.info(f"Connecting to ip [{config['tws']['host']}] port[{config['tws']['port']}]")
     try:
-        ib.connect(config["tws_host"], config["tws_port"], clientId=config["tws_port"])
+        ib.connect(config['tws']['host'], config['tws']['port'], clientId=config['tws']['port'])
     except BaseException as err:
         log.error(f"Unexpected Error")
         log.error(err)
@@ -173,30 +172,11 @@ def main():
             log.info("No changes detected.  Using the same contract list")
 
 
-def collect_args() -> dict:
-    """Collect arguments passed into the script
-
-    Returns:
-        dict: Arguments Object
-    """
-    parser = argparse.ArgumentParser(
-        description='Collect per second Realtime Data for a stock + 18 related options')
-
-    parser.add_argument('config', help='JSON file that contains all the configuration',
-                        default="config.json", type=str)
-    parser.add_argument('--verbose', help='Enable verbose output', action='store_true')
-    parser.add_argument('--debug', help='Enable debug output', action='store_true')
-    parser.add_argument('--info', help='Enable info level output', action='store_true')
-
-    return parser.parse_args()
-
-
 if __name__ == "__main__":
-    args = collect_args()
+    config = FileUtil.readConfig(sys.argv[1])
 
     logging.basicConfig(level=logging.ERROR)
     log = logging.getLogger('myLogger')
     log.setLevel(logging.INFO)
 
-    config = FileUtil.readConfig(args.config)
     main()

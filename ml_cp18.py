@@ -232,49 +232,18 @@ def main(scan_data_dir):
     projection.to_csv(outfile, float_format='%.6f', index=False)
     sys.exit(0)  # something wrong with looping. =( =(
 
-def collect_args() -> dict:
-    """Collect arguments passed into the script
-
-    Returns:
-        dict: Arguments Object
-    """
-    parser = argparse.ArgumentParser(
-        description='Collect per second Realtime Data for a stock + 18 related options')
-
-    parser.add_argument('config', help='JSON file that contains all the configuration',
-                        default="config.json", type=str)
-    parser.add_argument('scan_dir', help='Data file directory to scan.  Added to current path',
-                        default="/IBdata/", type=str)
-    parser.add_argument('out_dir', help='Directory write output.  Added to current path',
-                        default="/ml_cp18/", type=str)
-    retDict = parser.parse_args()
-
-    if not retDict.scan_dir.startswith("/"):
-        retDict.scan_dir = "/" + retDict.scan_dir
-    if not retDict.scan_dir.endswith("/"):
-        retDict.scan_dir = retDict.scan_dir + "/"
-
-    if not retDict.out_dir.startswith("/"):
-        retDict.out_dir = "/" + retDict.out_dir
-    if not retDict.out_dir.endswith("/"):
-        retDict.out_dir = retDict.out_dir + "/"
-    pprint(retDict)
-
-    return retDict
-
 
 if __name__ == "__main__":
 
     pd.set_option('display.max_columns', None)
-    args = collect_args()
+    config = FileUtil.readConfig(sys.argv[1])
 
-    config = FileUtil.readConfig(args.config)
-    scan_dir = os.getcwd() + args.scan_dir
-    out_dir = os.getcwd() + args.out_dir
+    data_dir = os.getcwd() + "/" + config["ib"]["data_dir"] + "/"
+    out_dir = os.getcwd() + "/" + config["ml18"]["data_dir"] + "/"
 
-    print("Scanning: " + scan_dir)
+    print("Scanning: " + data_dir)
 
-    for rootdir, dirs, files in os.walk(scan_dir):
+    for rootdir, dirs, files in os.walk(data_dir):
         for subdir in dirs:
             full_dir = os.path.join(rootdir, subdir)
             search_mask1 = full_dir + "/ol_" + config["stock"] + '*.csv'

@@ -26,11 +26,14 @@ def readConfig(fileName):
         log.error('cannot open file', fileName)
         sys.exit(1)
     # verify fields exist
-    x = data["tws_port"]
-    x = data["file_flush_seconds"]
     x = data["stock"]
+    x = data["stockContractId"]
     x = data["weeksOut"]
     x = data["strikeBox"]
+    # tws parameters
+    x = data["tws"]["host"]
+    x = data["tws"]["port"]
+    x = data["tws"]["quotes_flush_to_file_seconds"]
     return data
 
 

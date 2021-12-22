@@ -1,9 +1,21 @@
 {
-  "tws_host" : "192.168.1.211",
-  "tws_port" : 7496,
-  "file_flush_seconds" : 60,
   "stock": "AAPL",
   "stockContractId" : 265598,
   "weeksOut" : 3,
-  "strikeBox": 5
+  "strikeBox": 5,
+
+  "tws": {
+    "host" : "192.168.1.211",
+    "port" : 7496,
+    "quotes_flush_to_file_seconds" : 60
+  },
+
+  "ib": {
+    "data_dir" : "IBdata"
+  },
+
+  "ml18" : {
+    "data_dir" : "ml_cp18"
+  }
+
 }

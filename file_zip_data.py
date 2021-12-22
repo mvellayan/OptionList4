@@ -27,33 +27,10 @@ def main(scan_data_dir):
                             file_prefix_tuple=('sq_', 'oq_', 'ol_'), zip_file_name=zipFilename)
 
 
-def collect_args() -> dict:
-    """Collect arguments passed into the script
-
-    Returns:
-        dict: Arguments Object
-    """
-    parser = argparse.ArgumentParser(
-        description='zips up data for a given stock')
-    parser.add_argument('config', help='JSON file that contains all the configuration',
-                        default="config.json", type=str)
-    parser.add_argument('data_dir', help='Data file directory to scan.  Added to current path',
-                        default="/IBdata/", type=str)
-    retDict = parser.parse_args()
-
-    if not retDict.data_dir.startswith("/"):
-        retDict.data_dir = "/" + retDict.data_dir
-    if not retDict.data_dir.endswith("/"):
-        retDict.data_dir = retDict.data_dir + "/"
-
-    return retDict
-
-
 if __name__ == "__main__":
 
-    args = collect_args()
-    config = FileUtil.readConfig(args.config)
-    data_dir = os.getcwd() + args.data_dir
+    config = FileUtil.readConfig(sys.argv[1])
+    data_dir = os.getcwd() + "/" + config["ib"]["data_dir"] + "/"
 
     print("Scanning: " + data_dir)
     for rootdir, dirs, files in os.walk(data_dir):
