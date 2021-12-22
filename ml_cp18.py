@@ -213,7 +213,7 @@ def main(scan_data_dir):
     #projection['p60s_delta_quantile'] = pd.qcut('s' + projection['p60s_delta'], q=7, labels=False)
     ctr = 0
     labels = []
-    print (projection.cols)
+
     for v in projection['p60s_delta'].quantile((1 / 7, 2 / 7, 3 / 7, 4 / 7, 5 / 7, 6 / 7, 1)).tolist():
         labels.append(f"q_{ctr}_{v:.2f}")
         ctr += 1
@@ -230,7 +230,7 @@ def main(scan_data_dir):
     # projection.drop(axis=1, columns=['time', 'p60s_delta', 'p300s_delta'], inplace=True)
     projection.dropna(axis=0, how='any', inplace=True)
     projection.to_csv(outfile, float_format='%.6f', index=False)
-
+    sys.exit(0)  # something wrong with looping. =( =(
 
 def collect_args() -> dict:
     """Collect arguments passed into the script
@@ -273,6 +273,7 @@ if __name__ == "__main__":
     out_dir = os.getcwd() + args.out_dir
 
     print("Scanning: " + scan_dir)
+
     for rootdir, dirs, files in os.walk(scan_dir):
         for subdir in dirs:
             full_dir = os.path.join(rootdir, subdir)
