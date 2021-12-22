@@ -11,10 +11,12 @@ share/man/man1/ipython.1.gz
 #dont commit the data
 IBdata/
 data/
+ml_cp18/
 
 #Do not commit data or logs
 *csv
 *zip
+*tar
 *xlsx
 logs/
 share/
