@@ -16,11 +16,12 @@ logging.basicConfig(level=logging.ERROR)
 log = logging.getLogger("myLogger")
 log.setLevel(logging.INFO)
 
+config = {}                      # parameter config object
+
 pdOptionList: pd.DataFrame = None     # Data Frame all options Contracts for the symbol
 pdOptionList3wC: pd.DataFrame = None     # 3 week calls only
 pdStockQuotes: pd.DataFrame = None    # Data Frame all date/time quotes for the symbol
 pdOptionQuotesIdx = {}
-config = {}                      # parameter config object
 expiryList = []                 # list of expiry we are interested in for the given date
 running_missing = 0
 running_total = 0
@@ -79,20 +80,20 @@ def expandX(quoteTime, conId, quoteLast):
                 theta =  0
             else:
                 theta = (tv / dur) * 100 * 1000 # 100 = cents, 100 = basis point
-            # retDict[listLabel[index] + "_" + "symbol"] = res["symbol"]
+            retDict[listLabel[index] + "_" + "symbol"] = res["symbol"]
             retDict[listLabel[index] + "_" + "bid_ask_delta"] = res["bid"] - res["ask"]
-            # retDict[listLabel[index] + "_" + "ask"] = res["ask"]
+            retDict[listLabel[index] + "_" + "ask"] = res["ask"]
             retDict[listLabel[index] + "_" + "ask_size"] = res["ask_size"]
-            # retDict[listLabel[index] + "_" + "bid"] = res["bid"]
+            retDict[listLabel[index] + "_" + "bid"] = res["bid"]
             retDict[listLabel[index] + "_" + "bid_size"] = res["bid_size"]
-            # retDict[listLabel[index] + "_" + "last"] = res["last"]
+            retDict[listLabel[index] + "_" + "last"] = res["last"]
             retDict[listLabel[index] + "_" + "last_size"] = res["last_size"]
-            # retDict[listLabel[index] + "_" + "strike"] = contract.strike
+            retDict[listLabel[index] + "_" + "strike"] = contract.strike
             if index == 0:
                 retDict[listLabel[index] + "_" + "strike_delta"] = quoteLast - contract.strike
-            # retDict[listLabel[index] + "_" + "time_value"] = tv
+            retDict[listLabel[index] + "_" + "time_value"] = tv
             retDict[listLabel[index] + "_" + "theta"] = theta
-            # retDict[listLabel[index] + "_" + "implied_volatility"] = res["implied_volatility"]
+            retDict[listLabel[index] + "_" + "implied_volatility"] = res["implied_volatility"]
         index += 1
 
     return retDict
@@ -178,6 +179,14 @@ def main(scan_data_dir):
         print(f"\tAssessment File Exist, skipping directory: {outfile}")
         return
 
+    pdOptionList = None  # Data Frame all options Contracts for the symbol
+    pdOptionList3wC = None  # 3 week calls only
+    pdStockQuotes = None  # Data Frame all date/time quotes for the symbol
+    projection = None
+    df = None
+    pdOptionQuotesIdx = {}
+    expiryList = []  # list of expiry we are interested in for the given date
+
     if not loadBasicData(scan_data_dir):
         log.error("Cant find data in this dir: " + scan_data_dir)
         return
@@ -194,22 +203,23 @@ def main(scan_data_dir):
     #pprint(df.columns)
     #df.set_index('time')
 
-    pdStockQuotes.drop(axis=1, columns=['con_id', 'symbol', 'bid', 'ask', 'last', 'hist_volatility', 'implied_volatility'],
-                       inplace=True)
-    df.drop(axis=1, columns=['p0', 'p15s', 'p30s', 'p60s', 'p300s', 'p600s', 'p900s'], inplace=True)
+    # pdStockQuotes.drop(axis=1, columns=['con_id', 'symbol', 'bid', 'ask', 'last', 'hist_volatility', 'implied_volatility'],
+    #                   inplace=True)
+    # df.drop(axis=1, columns=['p0', 'p15s', 'p30s', 'p60s', 'p300s', 'p600s', 'p900s'], inplace=True)
 
     projection = pdStockQuotes.merge(df, on="time", how="outer")
     # for col in projection.columns: print(f"{ctr}: {col}")
 
-    # projection['p60s_delta_quantile'] = projection.qcut('s' + df['p60s_delta'], 7, labels=False)
+    #projection['p60s_delta_quantile'] = pd.qcut('s' + projection['p60s_delta'], q=7, labels=False)
     ctr = 0
     labels = []
+    print (projection.cols)
     for v in projection['p60s_delta'].quantile((1 / 7, 2 / 7, 3 / 7, 4 / 7, 5 / 7, 6 / 7, 1)).tolist():
         labels.append(f"q_{ctr}_{v:.2f}")
         ctr += 1
     projection['p60s_bucket_category'] = pd.qcut(df['p60s_delta'], 7, labels=labels)
 
-    # projection['p300s_delta_quantile'] = projection.qcut('s' + df['p300s_delta'], 7, labels=False)
+    #projection['p300s_delta_quantile'] = pd.qcut('s' + projection['p300s_delta'], q=7, labels=False)
     ctr = 0
     labels = []
     for v in projection['p300s_delta'].quantile((1 / 7, 2 / 7, 3 / 7, 4 / 7, 5 / 7, 6 / 7, 1)).tolist():
@@ -217,12 +227,10 @@ def main(scan_data_dir):
         ctr += 1
     projection['p300s_bucket_category'] = pd.qcut(df['p300s_delta'], 7, labels=labels)
 
-
-    projection.drop(axis=1, columns=['time', 'p60s_delta', 'p300s_delta'], inplace=True)
+    # projection.drop(axis=1, columns=['time', 'p60s_delta', 'p300s_delta'], inplace=True)
     projection.dropna(axis=0, how='any', inplace=True)
     projection.to_csv(outfile, float_format='%.6f', index=False)
-    log.info("Done!")
-    sys.exit(1)
+
 
 def collect_args() -> dict:
     """Collect arguments passed into the script
