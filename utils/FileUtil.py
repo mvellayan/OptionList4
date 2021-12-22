@@ -143,7 +143,7 @@ def zip_and_delete(directory, stock_symbol_in_file_name,  zip_file_name, file_pr
                         and ".csv" in name \
                         and "ol_" in name \
                         and name[-6:].isnumeric():
-                    print(f"removing file {directory}/{name}")
+                    # print(f"removing file {directory}/{name}")
                     os.remove(directory + "/" + name)
 
                 if stock_symbol_in_file_name in name \
