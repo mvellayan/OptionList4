@@ -121,7 +121,7 @@ def filter_option_list(expiryList, quoteAmt: float, df, strikeBox: int):
     # p('\n Summary: Above Strike (', df_res.shape, ') \n')
 
     filter_option_list_cache[quoteAmt] = retArray
-    assert len(retArray) == 18, "should be tracking 18 options. =( " + len(retArray) + ")"
+    ## assert len(retArray) == 18, "should be tracking 18 options. =( " + str(len(retArray)) + ")"
     return retArray
 
 
@@ -171,12 +171,12 @@ def get_expiry_list(quoteTimeDate, noWeeks: int, pdOptionList):
     expiry = pdOptionList['expiry'].unique()
     expiry.sort()
     for dts in expiry:
-        if dts >= (quoteTimeDate/1000000):
-            expiryListArr.append(dts)
+        #if dts >= (quoteTimeDate/1000000):
+        expiryListArr.append(dts)
         if len(expiryListArr) >= 3:
             break
 
-    assert expiryListArr[0] >= (quoteTimeDate/1000000), "Expiry of option 0st >= quote date "
+    #assert expiryListArr[0] >= (quoteTimeDate/1000000), "Expiry of option 0st >= quote date "
     assert expiryListArr[1] >= expiryListArr[0], "Expiry of option 1st >= expiry of option 0"
     assert expiryListArr[2] >= expiryListArr[1], "Expiry of option 2st >= expiry of option 1"
     return expiryListArr
