@@ -175,6 +175,9 @@ def getDateStrFromPath(path):
     path_arr.reverse()
 
     st = 0
+    day: str = " "
+    month: str = " " 
+    year: str = " "
     # search up 3 in path
 
     for xc in range(0, len(path_arr)-3):
@@ -183,7 +186,7 @@ def getDateStrFromPath(path):
             st = st + xc + 1
             break
 
-    if day == 0:
+    if not day.isnumeric():
         raise Exception(f"last 2 components are not integers {path}. Cant find day of month")
 
     if len(path_arr[st]) == 2 and path_arr[st].isnumeric():
