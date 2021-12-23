@@ -130,12 +130,13 @@ def loadBasicData(startingDir):
     else:
         log.info(f"Found [{pdStockQuotes.shape}] stocks rows.")
 
-    # 3. Load variable : expiryList
-    expiryList = IBUtil.get_expiry_list(pdStockQuotes[['time']].values[0][0], 3)
-
     # 4. Load pdOptionList -- options List
     for file in glob.glob(startingDir + "/ol_" + symbol + "*csv"):
         pdOptionList = pd.read_csv(file)
+
+    # 3. Load variable : expiryList
+    expiryList = IBUtil.get_expiry_list(pdStockQuotes[['time']].values[0][0], 3, pdOptionList)
+
 
     # 4.b load pdOptionList3wC
     # filtering now for performance improvement.
@@ -226,6 +227,15 @@ def main(scan_data_dir):
         labels.append(f"q_{ctr}_{v:.2f}")
         ctr += 1
     projection['p300s_bucket_category'] = pd.qcut(df['p300s_delta'], 7, labels=labels)
+
+
+    needed_cols = ['bid_size', 'ask_size', 'last_size', 'volume',  'bid_ask_delta',  'c_w1_n3_ask', 'c_w1_n3_bid', 'c_w1_n3_last', 'c_w1_n3_last_size',  'c_w1_n3_time_value',  'c_w1_n3_theta',  'c_w1_n2_ask',  'c_w1_n2_bid',  'c_w1_n2_last',  'c_w1_n2_last_size',  'c_w1_n2_time_value',  'c_w1_n2_theta',  'c_w1_n1_ask',  'c_w1_n1_bid',  'c_w1_n1_last',  'c_w1_n1_last_size',  'c_w1_n1_time_value',  'c_w1_n1_theta',  'c_w1_p1_ask',  'c_w1_p1_bid',  'c_w1_p1_last',  'c_w1_p1_last_size',  'c_w1_p1_time_value',  'c_w1_p1_theta',  'c_w1_p2_ask',  'c_w1_p2_bid',  'c_w1_p2_last',  'c_w1_p2_last_size',  'c_w1_p2_time_value',  'c_w1_p2_theta',  'c_w1_p3_ask',  'c_w1_p3_bid',  'c_w1_p3_last',  'c_w1_p3_last_size',  'c_w1_p3_time_value',  'c_w1_p3_theta',  'c_w2_n3_ask',  'c_w2_n3_bid',  'c_w2_n3_last',  'c_w2_n3_last_size',  'c_w2_n3_time_value',  'c_w2_n3_theta',  'c_w2_n2_ask',  'c_w2_n2_bid',  'c_w2_n2_last',  'c_w2_n2_last_size',  'c_w2_n2_time_value',  'c_w2_n2_theta',  'c_w2_n1_ask',  'c_w2_n1_bid',  'c_w2_n1_last',  'c_w2_n1_last_size',  'c_w2_n1_time_value',  'c_w2_n1_theta',  'c_w2_p1_ask',  'c_w2_p1_bid',  'c_w2_p1_last',  'c_w2_p1_last_size',  'c_w2_p1_time_value',  'c_w2_p1_theta',  'c_w2_p2_ask',  'c_w2_p2_bid',  'c_w2_p2_last',  'c_w2_p2_last_size',  'c_w2_p2_time_value',  'c_w2_p2_theta',  'c_w2_p3_ask',  'c_w2_p3_bid',  'c_w2_p3_last',  'c_w2_p3_last_size',  'c_w2_p3_time_value',  'c_w2_p3_theta',  'c_w3_n3_ask',  'c_w3_n3_bid',  'c_w3_n3_last',  'c_w3_n3_last_size',  'c_w3_n3_time_value',  'c_w3_n3_theta',  'c_w3_n2_ask',  'c_w3_n2_bid',  'c_w3_n2_last',  'c_w3_n2_last_size',  'c_w3_n2_time_value',  'c_w3_n2_theta',  'c_w3_n1_ask',  'c_w3_n1_bid',  'c_w3_n1_last',  'c_w3_n1_last_size',  'c_w3_n1_time_value',  'c_w3_n1_theta',  'c_w3_p1_ask',  'c_w3_p1_bid',  'c_w3_p1_last',  'c_w3_p1_last_size',  'c_w3_p1_time_value',  'c_w3_p1_theta',  'c_w3_p2_ask',  'c_w3_p2_bid',  'c_w3_p2_last',  'c_w3_p2_last_size',  'c_w3_p2_time_value',  'c_w3_p2_theta',  'c_w3_p3_ask',  'c_w3_p3_bid',  'c_w3_p3_last',  'c_w3_p3_last_size',  'c_w3_p3_time_value', 'c_w3_p3_theta']
+    have_cols = list(projection.columns)
+    if len(set(needed_cols) - set(have_cols)) > 0:
+        print("*****************************************")
+        print(f"missing cols: {set(needed_cols) - set(have_cols)}")
+        print(f"have cols: {set(have_cols)}")
+        print(f"needed cols: {set(needed_cols)}")
 
     # projection.drop(axis=1, columns=['time', 'p60s_delta', 'p300s_delta'], inplace=True)
     projection.dropna(axis=0, how='any', inplace=True)

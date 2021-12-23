@@ -66,12 +66,14 @@ def get_filtered_contract_list(ib, config, quoteAmt: float = 0.0, force_pull=Fal
             ctr += 1
         quoteAmt = data.last
         log.info("Using last quote:")
+        assert quoteAmt > 0, "Expecting quote > 0"
     log.info(quoteAmt)
 
     # expiryList, quoteLast, optionList, strikeBox=3)
-    expiryList = get_expiry_list(datetime.now(), config["weeksOut"])
+    expiryList = get_expiry_list(datetime.now(), config["weeksOut"], optionList)
     retArray += filter_option_list(expiryList, quoteAmt, optionList, config["strikeBox"])
     return retArray
+
 
 filter_option_list_cache = {}
 def filter_option_list(expiryList, quoteAmt: float, df, strikeBox: int):
@@ -119,6 +121,7 @@ def filter_option_list(expiryList, quoteAmt: float, df, strikeBox: int):
     # p('\n Summary: Above Strike (', df_res.shape, ') \n')
 
     filter_option_list_cache[quoteAmt] = retArray
+    assert len(retArray) == 18, "should be tracking 18 options. =( " + len(retArray) + ")"
     return retArray
 
 
@@ -162,10 +165,23 @@ class MarketData:
             self.impliedVolatility = ticker.impliedVolatility
 
 
-def get_expiry_list(quoteTimeDate, noWeeks: int):
+def get_expiry_list(quoteTimeDate, noWeeks: int, pdOptionList):
 
     expiryListArr = []
+    expiry = pdOptionList['expiry'].unique()
+    expiry.sort()
+    for dts in expiry:
+        if dts >= (quoteTimeDate/1000000):
+            expiryListArr.append(dts)
+        if len(expiryListArr) >= 3:
+            break
 
+    assert expiryListArr[0] >= (quoteTimeDate/1000000), "Expiry of option 0st >= quote date "
+    assert expiryListArr[1] >= expiryListArr[0], "Expiry of option 1st >= expiry of option 0"
+    assert expiryListArr[2] >= expiryListArr[1], "Expiry of option 2st >= expiry of option 1"
+    return expiryListArr
+
+    # Old way... should not find 3 fridays in a row.. some are not work days!!!
     if type(quoteTimeDate) == numpy.int64:
         quoteTime: int = quoteTimeDate
         quoteTimeStr = str(quoteTime)
