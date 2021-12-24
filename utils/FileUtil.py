@@ -156,7 +156,7 @@ def zip_and_delete(directory, stock_symbol_in_file_name,  zip_file_name, file_pr
                     name2 = os.path.join(root, name)
                     name2 = os.path.normpath(name2)
                     zf.write(name2, name)
-                    print(f"removing file {directory}/{name}")
+                    #print(f"removing file {directory}/{name}")
                     os.remove(directory + "/" + name)
                 else:
                     log.info(f"\t\tSkipping file: {name} stock_symbol_in_file_name={stock_symbol_in_file_name} file_prefix_tuple={file_prefix_tuple}")
