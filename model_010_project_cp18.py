@@ -132,7 +132,12 @@ def loadBasicData(startingDir):
 
     # 4. Load pdOptionList -- options List
     for file in glob.glob(startingDir + "/ol_" + symbol + "*csv"):
-        pdOptionList = pd.read_csv(file)
+        ol = pd.read_csv(file)
+        if pdOptionList is None:
+            pdOptionList = ol
+        else:
+            pdOptionList = pdStockQuotes.append(ol, ignore_index=True)
+    pdOptionList.drop_duplicates(inplace=True, subset=['con_id'])
 
     # 3. Load variable : expiryList
     expiryList = IBUtil.get_expiry_list(pdStockQuotes[['time']].values[0][0], 3, pdOptionList)
@@ -175,7 +180,7 @@ def main(scan_data_dir):
     global running_missing, running_total, total_lookup, config
 
     outfile = out_dir + "ml_cp18_" + config["stock"] + getDateStrFromPath(scan_data_dir) + ".csv"
-    print(f"\nProcessing {scan_data_dir} => {outfile}")
+    print(f"Processing {scan_data_dir} => {outfile}")
     if os.path.exists(outfile):
         print(f"\tAssessment File Exist, skipping directory: {outfile}")
         return
@@ -251,7 +256,7 @@ if __name__ == "__main__":
     data_dir = os.getcwd() + "/" + config["ib"]["data_dir"] + "/"
     out_dir = os.getcwd() + "/" + config["ml18"]["data_dir"] + "/"
 
-    print("Scanning: " + data_dir)
+    print("Main scanning: " + data_dir)
 
     for rootdir, dirs, files in os.walk(data_dir):
         for subdir in dirs:
