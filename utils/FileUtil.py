@@ -7,6 +7,7 @@ import re
 import zipfile
 import logging
 
+import numpy
 import numpy as np
 from datetime import datetime, timedelta
 import time
@@ -102,9 +103,17 @@ def dateAdd(inDate: datetime, minutes: int = 0, seconds: int = 0):
     return getStrFromDate(inDate, "YYYYMMDDHHMMSS")
 
 
-def getDateObjFromStr(inTime, in_format="YYYYMMDDHHMMSS"):
-
-    if type(inTime) == np.int64 or  type(inTime) == int: inTime = str(inTime)
+def getDateObjFromStr(inTimeParam, in_format="YYYYMMDDHHMMSS"):
+    inTime: str = ""
+    if type(inTimeParam) == np.int64 or \
+            type(inTimeParam) == int or \
+            type(inTimeParam) == numpy.float64:
+        inTime = str(round(inTimeParam))
+    elif isinstance(inTimeParam, str):
+        inTime = inTimeParam
+    else:
+        print(type(inTimeParam))
+        raise Exception("unknown inTimeparam! =(")
 
     if in_format == "YYYYMMDDHHMMSS":
         return datetime(int(inTime[0:4]), int(inTime[4:6]),

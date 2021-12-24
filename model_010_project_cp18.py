@@ -78,7 +78,7 @@ def expandX(quoteTime, conId, quoteLast):
             tv = ((res["ask"] + res["bid"])/2) - (quoteLast - contract.strike)
             dur = get_sec_to_expire(
                 FileUtil.getDateObjFromStr(quoteTime),
-                FileUtil.getDateObjFromStr(contract.lastTradeDateOrContractMonth,'YYYYMMDD'))
+                FileUtil.getDateObjFromStr(contract.lastTradeDateOrContractMonth, 'YYYYMMDD'))
             if dur == 0 or tv == 0:
                 theta =  0
             else:
@@ -124,6 +124,10 @@ def loadBasicData(startingDir):
             pdStockQuotes = curPd
         else:
             pdStockQuotes = pdStockQuotes.append(curPd, ignore_index=True)
+
+    if pdStockQuotes is None:
+        return False
+
     pdStockQuotes["bid_ask_delta"] = pdStockQuotes["bid"] - pdStockQuotes["ask"]
 
     # No files in the directory
