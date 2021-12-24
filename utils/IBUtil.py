@@ -176,6 +176,8 @@ def get_expiry_list(quoteTimeDate, noWeeks: int, pdOptionList):
         if len(expiryListArr) >= 3:
             break
 
+    assert len(expiryListArr) == 3
+    print(expiryListArr)
     #assert expiryListArr[0] >= (quoteTimeDate/1000000), "Expiry of option 0st >= quote date "
     assert expiryListArr[1] >= expiryListArr[0], "Expiry of option 1st >= expiry of option 0"
     assert expiryListArr[2] >= expiryListArr[1], "Expiry of option 2st >= expiry of option 1"
