@@ -59,7 +59,10 @@ def expandX(quoteTime, conId, quoteLast):
         ### hash_idx = str(row.ConId) + ":" + str(row.Time)
         ### print(index, '->', row, '==>', hash_idx)
 
-        idx = pdOptionQuotesIdx.get(str(contract.conId) + ":" + str(quoteTime))
+        for ctr in range(2):
+            idx = pdOptionQuotesIdx.get(str(contract.conId) + ":" + str(quoteTime+ctr))
+            if idx is not None:
+                break
         # print("<<<<<<<<- " + str(conId) + ":" + str(quoteTime) + " => " + str(idx))
 
         if idx is None:
@@ -243,7 +246,7 @@ def main(scan_data_dir):
         print(f"needed cols: {set(needed_cols)}")
 
     # projection.drop(axis=1, columns=['time', 'p60s_delta', 'p300s_delta'], inplace=True)
-    projection.dropna(axis=0, how='any', inplace=True)
+    #projection.dropna(axis=0, how='any', inplace=True)
     projection.to_csv(outfile, float_format='%.6f', index=False)
     sys.exit(0)  # something wrong with looping. =( =(
 
