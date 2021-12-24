@@ -180,22 +180,26 @@ def getDateStrFromPath(path):
     year: str = " "
     # search up 3 in path
 
-    for xc in range(0, len(path_arr)-3):
-        if len(path_arr[st + xc]) == 2 and path_arr[st].isnumeric():
-            day = path_arr[st + xc]
-            st = st + xc + 1
+    for ctr in range(3):
+        if len(path_arr[st]) == 2 and len(path_arr[st+1]) == 2 and len(path_arr[st+2]) == 4:
             break
-
-    if not day.isnumeric():
-        raise Exception(f"last 2 components are not integers {path}. Cant find day of month")
+        elif len(path_arr) > 3+st:
+            st += 1
 
     if len(path_arr[st]) == 2 and path_arr[st].isnumeric():
+        day = path_arr[st]
+    else:
+        print(">", path, path_arr)
+        raise Exception(f"Can't find day of month")
+
+    st += 1
+    if len(path_arr[st]) == 2 and path_arr[st].isnumeric():
         month = path_arr[st]
-        st += 1
     else:
         print(path)
         raise Exception("can't find month from path: " + path)
 
+    st += 1
     if len(path_arr[st]) == 4 and path_arr[st].isnumeric():
         year = path_arr[st]
     else:
