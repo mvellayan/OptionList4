@@ -38,18 +38,25 @@ def run_xg(file_name):
         return
 
     data = pd.read_csv(file_name)
-    data = data.dropna()
 
     try:
         have_cols = [value for value in x_cols if value in list(data.columns)]
+        have_cols.append('p300s_bucket_category')
         X = data [have_cols]
-    except KeyError:
+        X = X.dropna()
+        Y = X['p300s_bucket_category'].to_frame()
+        X.drop(['p300s_bucket_category'], axis=1, inplace=True)
+        if X.shape[0] == 0:
+            print(f"Skipping.  file {file_name_json} No qualified data!")
+            return
+    except KeyError as e:
         print("********************************************************")
+        print(e)
         print(f" cant find all cols for file {file_name}")
         print_missing_cols(x_cols, list(data.columns))
         return
 
-    Y = data[['p300s_bucket_category']]
+
 
     X15_train, X15_test, y15_train, y15_test = train_test_split(X, Y, test_size=0.2, random_state=42)
 
@@ -89,6 +96,21 @@ def run_xg(file_name):
     frog_cm_pct = frog_cm.astype('float') / frog_cm.sum(axis=1)[:, np.newaxis]
 
     np.set_printoptions(precision=2)
+    from numpy import sort
+
+    features = pd.DataFrame()
+    features['name'] = xgb15.get_booster().feature_names
+    features['importance'] = xgb15.feature_importances_
+    features.columns =['name','importance']
+    features.sort_values(by=['importance'], ascending=False, inplace=True)
+    print(features.head(20))
+    ctr = 0
+    for i in features.itertuples():
+        features.at[i.Index, 'rank'] = 'rank ' + str(round(ctr))
+        features.at[i.Index, 'index'] = str(int(i.Index))
+        ctr += 1
+
+    pd.set_option('display.max_rows', 200)
     with open(file_text_txt, 'w') as out_file:
         with redirect_stdout(out_file):
             print(f"XGB Model Created at: { datetime.now().strftime('%m-%d-%Y %H:%M:%S')}")
@@ -103,13 +125,9 @@ def run_xg(file_name):
             print("\n\n")
             print(frog_cm_pct)
             print("Column Priority    -------------------------------------------------------")
-            features = xgb15.get_booster().feature_names
-            importance = xgb15.feature_importances_
             print(features)
             print("-------------------------------------------------------------------------")
             # summarize feature importance
-            for i, v in enumerate(importance):
-                print('%0d\t%s\t%.6f' % (i, features[i], v))
     xgb15.save_model(file_name_json)
 
 
