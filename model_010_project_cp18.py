@@ -16,8 +16,6 @@ logging.basicConfig(level=logging.ERROR)
 log = logging.getLogger("myLogger")
 log.setLevel(logging.INFO)
 
-config = {}                      # parameter config object
-
 pdOptionList: pd.DataFrame = None     # Data Frame all options Contracts for the symbol
 pdOptionList3wC: pd.DataFrame = None     # 3 week calls only
 pdStockQuotes: pd.DataFrame = None    # Data Frame all date/time quotes for the symbol
@@ -29,7 +27,7 @@ total_lookup = 0
 
 
 def expandX(quoteTime, conId, quoteLast):
-    global config, pdStockQuotes, pdOptionList, pdOptionList3wC, pdOptionQuotesIdx
+    global pdStockQuotes, pdOptionList, pdOptionList3wC, pdOptionQuotesIdx
     global running_total, running_missing, total_lookup, expiryList
     contractList = IBUtil.filter_option_list(expiryList, quoteLast, pdOptionList3wC, strikeBox=3)
     # pprint (list)
@@ -41,16 +39,27 @@ def expandX(quoteTime, conId, quoteLast):
     retDict["time"] = quoteTime
     quoteDateObj = FileUtil.getDateObjFromStr(quoteTime)
     retDict["p0"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 0)
+    retDict["p5s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 5)
     retDict["p15s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 15)
     retDict["p30s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 30)
     retDict["p60s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 60)
+    retDict["p600s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 600)
+    retDict["p900s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 900)
+
+    if retDict["p5s"]:
+        retDict["p5s_delta"] = (retDict["p5s"] - retDict["p0"])
+    retDict["p15s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 15)
+    if retDict["p15s"]:
+        retDict["p15s_delta"] = (retDict["p15s"] - retDict["p0"])
+    retDict["p30s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 30)
+    if retDict["p30s"]:
+        retDict["p30s_delta"] = (retDict["p30s"] - retDict["p0"])
     if retDict["p60s"]:
         retDict["p60s_delta"] = (retDict["p60s"] - retDict["p0"])
     retDict["p300s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 300)
     if retDict["p300s"]:
         retDict["p300s_delta"] = (retDict["p300s"] - retDict["p0"])
-    retDict["p600s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 600)
-    retDict["p900s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 900)
+
 
     for contract in contractList:
         running_total += 1
@@ -101,9 +110,8 @@ def expandX(quoteTime, conId, quoteLast):
 
     return retDict
 
-def loadBasicData(startingDir):
-    global config, pdStockQuotes, pdOptionList, pdOptionList3wC, pdOptionQuotesIdx, expiryList
-    symbol = config["stock"]
+def loadBasicData(startingDir, symbol):
+    global pdStockQuotes, pdOptionList, pdOptionList3wC, pdOptionQuotesIdx, expiryList
     zipFilename = startingDir + "/" + symbol + getDateStrFromPath(startingDir) + ".zip"
     startingDirOrig = startingDir
     createdTmpDir = False
@@ -175,18 +183,18 @@ def loadBasicData(startingDir):
             print("Error: %s : %s" % (startingDir, e.strerror))
     else:
         # 6b. loose files, zip it up  oq_FB211203C00305000_20211201.csv
-        FileUtil.zip_and_delete(directory=startingDir, stock_symbol_in_file_name=config["stock"],
+        FileUtil.zip_and_delete(directory=startingDir, stock_symbol_in_file_name=symbol,
                                 file_prefix_tuple=('sq_', 'oq_', 'ol_'), zip_file_name=zipFilename)
 
     # 7. Done!!
     return True
 
 
-def main(scan_data_dir):
+def main(scan_data_dir, symbol: str):
     global pdStockQuotes, pdOptionList, pdOptionQuotesIdx
-    global running_missing, running_total, total_lookup, config
+    global running_missing, running_total, total_lookup
 
-    outfile = out_dir + "ml_cp18_" + config["stock"] + getDateStrFromPath(scan_data_dir) + ".csv"
+    outfile = out_dir + "ml_cp18_" + symbol + getDateStrFromPath(scan_data_dir) + ".csv"
     print(f"Processing {scan_data_dir} => {outfile}")
     if os.path.exists(outfile):
         print(f"\tAssessment File Exist, skipping directory: {outfile}")
@@ -200,7 +208,7 @@ def main(scan_data_dir):
     pdOptionQuotesIdx = {}
     expiryList = []  # list of expiry we are interested in for the given date
 
-    if not loadBasicData(scan_data_dir):
+    if not loadBasicData(scan_data_dir, symbol):
         log.error("Cant find data in this dir: " + scan_data_dir)
         return
 
@@ -223,20 +231,38 @@ def main(scan_data_dir):
     projection = pdStockQuotes.merge(df, on="time", how="outer")
     # for col in projection.columns: print(f"{ctr}: {col}")
 
-    #projection['p60s_delta_quantile'] = pd.qcut('s' + projection['p60s_delta'], q=7, labels=False)
     ctr = 0
     labels = []
+    for v in projection['p5s_delta'].quantile((1 / 7, 2 / 7, 3 / 7, 4 / 7, 5 / 7, 6 / 7, 1)).tolist():
+        labels.append(f"q_{ctr}_{v:.4f}")
+        ctr += 1
+    projection['p5s_bucket_category'] = pd.qcut(df['p5s_delta'], 7, labels=labels)
 
+    ctr = 0
+    labels = []
+    for v in projection['p15s_delta'].quantile((1 / 7, 2 / 7, 3 / 7, 4 / 7, 5 / 7, 6 / 7, 1)).tolist():
+        labels.append(f"q_{ctr}_{v:.4f}")
+        ctr += 1
+    projection['p15s_bucket_category'] = pd.qcut(df['p15s_delta'], 7, labels=labels)
+
+    ctr = 0
+    labels = []
+    for v in projection['p30s_delta'].quantile((1 / 7, 2 / 7, 3 / 7, 4 / 7, 5 / 7, 6 / 7, 1)).tolist():
+        labels.append(f"q_{ctr}_{v:.4f}")
+        ctr += 1
+    projection['p30s_bucket_category'] = pd.qcut(df['p30s_delta'], 7, labels=labels)
+
+    ctr = 0
+    labels = []
     for v in projection['p60s_delta'].quantile((1 / 7, 2 / 7, 3 / 7, 4 / 7, 5 / 7, 6 / 7, 1)).tolist():
-        labels.append(f"q_{ctr}_{v:.2f}")
+        labels.append(f"q_{ctr}_{v:.4f}")
         ctr += 1
     projection['p60s_bucket_category'] = pd.qcut(df['p60s_delta'], 7, labels=labels)
 
-    #projection['p300s_delta_quantile'] = pd.qcut('s' + projection['p300s_delta'], q=7, labels=False)
     ctr = 0
     labels = []
     for v in projection['p300s_delta'].quantile((1 / 7, 2 / 7, 3 / 7, 4 / 7, 5 / 7, 6 / 7, 1)).tolist():
-        labels.append(f"q_{ctr}_{v:.2f}")
+        labels.append(f"q_{ctr}_{v:.4f}")
         ctr += 1
     projection['p300s_bucket_category'] = pd.qcut(df['p300s_delta'], 7, labels=labels)
 
@@ -257,8 +283,11 @@ def main(scan_data_dir):
 
 if __name__ == "__main__":
 
+    config = {}  # parameter config object
+
     pd.set_option('display.max_columns', None)
     config = FileUtil.readConfig(sys.argv[1])
+    symbol = config["stock"]
 
     data_dir = os.getcwd() + "/" + config["ib"]["data_dir"] + "/"
     out_dir = os.getcwd() + "/" + config["ml18"]["data_dir"] + "/"
@@ -268,8 +297,8 @@ if __name__ == "__main__":
     for rootdir, dirs, files in os.walk(data_dir):
         for subdir in dirs:
             full_dir = os.path.join(rootdir, subdir)
-            search_mask1 = full_dir + "/ol_" + config["stock"] + '*.csv'
-            search_mask2 = full_dir + "/" + config["stock"] + '*.zip'
+            search_mask1 = full_dir + "/ol_" + symbol + '*.csv'
+            search_mask2 = full_dir + "/" + symbol + '*.zip'
             if glob.glob(search_mask1) or glob.glob(search_mask2):
-                main(full_dir)
+                main(full_dir, symbol)
 
