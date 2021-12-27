@@ -177,31 +177,12 @@ def get_expiry_list(quoteTimeDate, noWeeks: int, pdOptionList):
             break
 
     assert len(expiryListArr) == 3
-    print(expiryListArr)
+    # print(expiryListArr)
     #assert expiryListArr[0] >= (quoteTimeDate/1000000), "Expiry of option 0st >= quote date "
     assert expiryListArr[1] >= expiryListArr[0], "Expiry of option 1st >= expiry of option 0"
     assert expiryListArr[2] >= expiryListArr[1], "Expiry of option 2st >= expiry of option 1"
     return expiryListArr
 
-    # Old way... should not find 3 fridays in a row.. some are not work days!!!
-    if type(quoteTimeDate) == numpy.int64:
-        quoteTime: int = quoteTimeDate
-        quoteTimeStr = str(quoteTime)
-        # parse this: 20211105105959
-        quoteTimeDate = FileUtil.getDateObjFromStr(quoteTimeStr)
-    elif type(quoteTimeDate) == datetime:
-        pass
-    else:
-        log.info("Unexpected data type for quoteTime: ")
-        log.info(type(quoteTimeDate))
-        sys.exit(1)
-
-    wDate = quoteTimeDate
-    for i in range(noWeeks):
-        wDate = wDate + timedelta((4 - wDate.weekday()) % 7)
-        expiryListArr.append(int(wDate.strftime("%Y%m%d")))
-        wDate = wDate + timedelta(days=1)
-    return expiryListArr
 
 
 if __name__ == "__main__":
