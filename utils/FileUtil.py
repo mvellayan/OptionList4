@@ -78,6 +78,11 @@ def makeDirectory(fileName):
                 #raise
 
 stock_quote_cache = {}
+
+def reset_quote_cache():
+    global stock_quote_cache
+    stock_quote_cache = {}
+
 def get_quote_with_delta(stockQuotes, quoteTime: datetime, delta: int):
 
     ## one time load cache.
@@ -87,7 +92,7 @@ def get_quote_with_delta(stockQuotes, quoteTime: datetime, delta: int):
             stock_quote_cache[ row['time'] ] = row['last']
 
     lastTrade = None
-    for iter in range(0,5):
+    for iter in range(3):
         date_index : int = int(dateAdd(quoteTime, seconds=(delta+iter)))
         lastTrade = stock_quote_cache.get(date_index, -1)
         if lastTrade > -1: return lastTrade
@@ -95,6 +100,7 @@ def get_quote_with_delta(stockQuotes, quoteTime: datetime, delta: int):
     if lastTrade > 0:
         return lastTrade
     else:
+        # print(f"couldn't find {date_index} of type {type(date_index)} =(")
         return None
 
 
@@ -172,9 +178,9 @@ def zip_and_delete(directory, stock_symbol_in_file_name,  zip_file_name, file_pr
     os.chdir(cwd)
 
 
-def unzip_file(directory, zip_file_name):
+def unzip_file(directory_name, zip_file_name):
     with zipfile.ZipFile(zip_file_name, 'r') as zip_ref:
-        zip_ref.extractall(directory)
+        zip_ref.extractall(directory_name)
 
 
 # send in '/Users/Muthu/Development/OptionList4/IBdata/2021/12/06/ml_cp18_AAPL.csv

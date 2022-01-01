@@ -16,6 +16,13 @@ logging.basicConfig(level=logging.ERROR)
 log = logging.getLogger("myLogger")
 log.setLevel(logging.INFO)
 
+delta_labels = ["p5s", "p15s", "p30s", "p60s", "p300s", "p600s", "n5s", "n15s", "n30s", "n60s", "n300s", "n600s"]
+delta_values = [5, 15, 30, 60, 300, 600, -5, -15, -30, -60, -300, -600]
+delta_quarts = [3, 3, 5, 5, 7, 7, 3, 3, 5, 5, 7, 7]
+bucket_labels = []
+for s in delta_labels:
+    bucket_labels.append(s + "_bucket")
+
 pdOptionList: pd.DataFrame = None     # Data Frame all options Contracts for the symbol
 pdOptionList3wC: pd.DataFrame = None     # 3 week calls only
 pdStockQuotes: pd.DataFrame = None    # Data Frame all date/time quotes for the symbol
@@ -24,7 +31,6 @@ expiryList = []                 # list of expiry we are interested in for the gi
 running_missing = 0
 running_total = 0
 total_lookup = 0
-
 
 def expandX(quoteTime, conId, quoteLast):
     global pdStockQuotes, pdOptionList, pdOptionList3wC, pdOptionQuotesIdx
@@ -38,42 +44,23 @@ def expandX(quoteTime, conId, quoteLast):
     index = 0
     retDict["time"] = quoteTime
     quoteDateObj = FileUtil.getDateObjFromStr(quoteTime)
+
     retDict["p0"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 0)
-    retDict["p5s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 5)
-    retDict["p15s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 15)
-    retDict["p30s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 30)
-    retDict["p60s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 60)
-    retDict["p600s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 600)
-    retDict["p900s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 900)
 
-    if retDict["p5s"]:
-        retDict["p5s_delta"] = (retDict["p5s"] - retDict["p0"])
-    retDict["p15s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 15)
-    if retDict["p15s"]:
-        retDict["p15s_delta"] = (retDict["p15s"] - retDict["p0"])
-    retDict["p30s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 30)
-    if retDict["p30s"]:
-        retDict["p30s_delta"] = (retDict["p30s"] - retDict["p0"])
-    if retDict["p60s"]:
-        retDict["p60s_delta"] = (retDict["p60s"] - retDict["p0"])
-    retDict["p300s"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 300)
-    if retDict["p300s"]:
-        retDict["p300s_delta"] = (retDict["p300s"] - retDict["p0"])
-
+    for ctr_delta_labels in range(len(delta_labels)):
+        label = delta_labels[ctr_delta_labels]
+        value = delta_values[ctr_delta_labels]
+        retDict[label] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, value)
+        if retDict[label]:
+            retDict[label + "_delta"] = (retDict[label] - retDict["p0"])
 
     for contract in contractList:
         running_total += 1
-        # approach 2
-        ### print (contract)
-        ### hash_idx = str(row.ConId) + ":" + str(row.Time)
-        ### print(index, '->', row, '==>', hash_idx)
 
         for ctr in range(2):
             idx = pdOptionQuotesIdx.get(str(contract.conId) + ":" + str(quoteTime+ctr))
             if idx is not None:
                 break
-        # print("<<<<<<<<- " + str(conId) + ":" + str(quoteTime) + " => " + str(idx))
-
         if idx is None:
             running_missing += 1
             if running_missing % 5000 == 0:
@@ -82,14 +69,13 @@ def expandX(quoteTime, conId, quoteLast):
                       str(conId) + ":" + str(quoteTime), "Missing")
         else:
             res = idx
-
             tv = None
             tv = ((res["ask"] + res["bid"])/2) - (quoteLast - contract.strike)
             dur = get_sec_to_expire(
                 FileUtil.getDateObjFromStr(quoteTime),
                 FileUtil.getDateObjFromStr(contract.lastTradeDateOrContractMonth, 'YYYYMMDD'))
             if dur == 0 or tv == 0:
-                theta =  0
+                theta = 0
             else:
                 theta = (tv / dur) * 100 * 1000 # 100 = cents, 100 = basis point
             retDict[listLabel[index] + "_" + "symbol"] = res["symbol"]
@@ -110,18 +96,16 @@ def expandX(quoteTime, conId, quoteLast):
 
     return retDict
 
-def loadBasicData(startingDir, symbol):
+def loadBasicData(in_zip_file, symbol):
     global pdStockQuotes, pdOptionList, pdOptionList3wC, pdOptionQuotesIdx, expiryList
-    zipFilename = startingDir + "/" + symbol + getDateStrFromPath(startingDir) + ".zip"
-    startingDirOrig = startingDir
-    createdTmpDir = False
 
-    # 1 is there is a zip file?  If so unzip & use tmp dir
-    if os.path.exists(zipFilename):
+    createdTmpDir = False
+    # 1 Unzip the zip file in a temp dir:
+    if os.path.exists(in_zip_file):
         createdTmpDir = True
-        startingDir = startingDir + "/" + FileUtil.getDateTimeStamp(1)
+        startingDir = in_zip_file[ : in_zip_file.rfind("/")] + "/" + FileUtil.getDateTimeStamp(1)
         os.makedirs(startingDir, exist_ok=True)
-        unzip_file(startingDir, zipFilename)
+        unzip_file(directory_name=startingDir, zip_file_name=in_zip_file)
 
     # 2. Load pdStockQuotes -- Stock Quotes
     for file in glob.glob(startingDir + "/sq_" + symbol + "_" + "*csv"):
@@ -176,26 +160,23 @@ def loadBasicData(startingDir, symbol):
 
     # 6. Cleanup
     if createdTmpDir:
-        # 6a. For zip file delete temp dir
         try:
             shutil.rmtree(startingDir)
         except OSError as e:
             print("Error: %s : %s" % (startingDir, e.strerror))
     else:
-        # 6b. loose files, zip it up  oq_FB211203C00305000_20211201.csv
-        FileUtil.zip_and_delete(directory=startingDir, stock_symbol_in_file_name=symbol,
-                                file_prefix_tuple=('sq_', 'oq_', 'ol_'), zip_file_name=zipFilename)
+        raise Exception("Unexpected createdTempDir == False.  Hmm")
 
     # 7. Done!!
     return True
 
 
-def main(scan_data_dir, symbol: str):
-    global pdStockQuotes, pdOptionList, pdOptionQuotesIdx
+def main(in_zip_file, out_dir, symbol: str):
+    global pdStockQuotes, pdOptionList, pdOptionQuotesIdx, expiryList, projection, df, pdOptionList3wC
     global running_missing, running_total, total_lookup
 
-    outfile = out_dir + "ml_cp18_" + symbol + getDateStrFromPath(scan_data_dir) + ".csv"
-    print(f"Processing {scan_data_dir} => {outfile}")
+    outfile = out_dir + "ml_cp18_" + symbol + getDateStrFromPath(in_zip_file) + ".csv"
+    print(f"Processing {in_zip_file} => {outfile}")
     if os.path.exists(outfile):
         print(f"\tAssessment File Exist, skipping directory: {outfile}")
         return
@@ -207,78 +188,49 @@ def main(scan_data_dir, symbol: str):
     df = None
     pdOptionQuotesIdx = {}
     expiryList = []  # list of expiry we are interested in for the given date
+    running_missing = 0
+    running_total = 0
+    total_lookup = 0
+    FileUtil.reset_quote_cache()
 
-    if not loadBasicData(scan_data_dir, symbol):
-        log.error("Cant find data in this dir: " + scan_data_dir)
+    if not loadBasicData(in_zip_file, symbol):
+        log.error("Cant find data in this dir: " + in_zip_file)
         return
 
     running_total = running_missing = 0
     total_lookup = len(pdStockQuotes) * 18
 
-    # TODO remove this line
-    # pdStockQuotes = pdStockQuotes.head(10000)
-    # Section
     df = pdStockQuotes.apply(lambda x: expandX(x['time'], x['con_id'], x['last']), axis=1, result_type='expand')
-
-    #pprint(pdStockQuotes.columns)
-    #pprint(df.columns)
-    #df.set_index('time')
-
-    # pdStockQuotes.drop(axis=1, columns=['con_id', 'symbol', 'bid', 'ask', 'last', 'hist_volatility', 'implied_volatility'],
-    #                   inplace=True)
-    # df.drop(axis=1, columns=['p0', 'p15s', 'p30s', 'p60s', 'p300s', 'p600s', 'p900s'], inplace=True)
 
     projection = pdStockQuotes.merge(df, on="time", how="outer")
     # for col in projection.columns: print(f"{ctr}: {col}")
 
-    ctr = 0
-    labels = []
-    for v in projection['p5s_delta'].quantile((1 / 7, 2 / 7, 3 / 7, 4 / 7, 5 / 7, 6 / 7, 1)).tolist():
-        labels.append(f"q_{ctr}_{v:.4f}")
-        ctr += 1
-    projection['p5s_bucket_category'] = pd.qcut(df['p5s_delta'], 7, labels=labels)
+    #delta_labels = ["p5s", "p15s", "p30s", "p60s", "p300s", "p600s", "n5s", "n15s", "n30s", "n60s", "n300s", "n600s"]
+    #delta_values = [5, 15, 30, 60, 300, 600, -5, -15, -30, -60, -300, -600]
+    #delta_quarts = [3, 3, 5, 5, 7, 7, 3, 3, 5, 5, 7, 7]
+    #bucket_labels = [ bucket_p5s, bucket_p15s....]
 
-    ctr = 0
-    labels = []
-    for v in projection['p15s_delta'].quantile((1 / 7, 2 / 7, 3 / 7, 4 / 7, 5 / 7, 6 / 7, 1)).tolist():
-        labels.append(f"q_{ctr}_{v:.4f}")
-        ctr += 1
-    projection['p15s_bucket_category'] = pd.qcut(df['p15s_delta'], 7, labels=labels)
+    for ctr_bucket_labels in range(len(bucket_labels)):
 
-    ctr = 0
-    labels = []
-    for v in projection['p30s_delta'].quantile((1 / 7, 2 / 7, 3 / 7, 4 / 7, 5 / 7, 6 / 7, 1)).tolist():
-        labels.append(f"q_{ctr}_{v:.4f}")
-        ctr += 1
-    projection['p30s_bucket_category'] = pd.qcut(df['p30s_delta'], 7, labels=labels)
+        # Build a list value labels for quartiles
+        bin_labels = []
+        for i_ctr in range(delta_quarts[ctr_bucket_labels]):
+            bin_labels.append(delta_labels[ctr_bucket_labels] + "_" + str(i_ctr+1) + "_of_" + str(delta_quarts[ctr_bucket_labels]))
 
-    ctr = 0
-    labels = []
-    for v in projection['p60s_delta'].quantile((1 / 7, 2 / 7, 3 / 7, 4 / 7, 5 / 7, 6 / 7, 1)).tolist():
-        labels.append(f"q_{ctr}_{v:.4f}")
-        ctr += 1
-    projection['p60s_bucket_category'] = pd.qcut(df['p60s_delta'], 7, labels=labels)
+        try:
+            new_col = bucket_labels[ctr_bucket_labels]
+            from_col = delta_labels[ctr_bucket_labels] + '_delta'
+            no_of_bins = delta_quarts[ctr_bucket_labels]
+            print(f"ctr_bucket_labels={ctr_bucket_labels} new_col_name={new_col} from_col = {from_col} no_bins={no_of_bins} w/ labels=[{bin_labels}]")
+            projection[new_col] = pd.qcut(x=df[ from_col], q=no_of_bins,
+                                           duplicates='drop', labels=bin_labels)
+        except ValueError:
+            print (" NotEnoughValues Value Error for:")
+            print(f"ctr_bucket_labels={ctr_bucket_labels} new_col_name={new_col} from_col = {from_col} no_bins={no_of_bins} w/ labels=[{bin_labels}]")
+            projection[bucket_labels[ctr_bucket_labels]] = "NotEnoughValues"
 
-    ctr = 0
-    labels = []
-    for v in projection['p300s_delta'].quantile((1 / 7, 2 / 7, 3 / 7, 4 / 7, 5 / 7, 6 / 7, 1)).tolist():
-        labels.append(f"q_{ctr}_{v:.4f}")
-        ctr += 1
-    projection['p300s_bucket_category'] = pd.qcut(df['p300s_delta'], 7, labels=labels)
-
-
-    needed_cols = ['bid_size', 'ask_size', 'last_size', 'volume',  'bid_ask_delta',  'c_w1_n3_ask', 'c_w1_n3_bid', 'c_w1_n3_last', 'c_w1_n3_last_size',  'c_w1_n3_time_value',  'c_w1_n3_theta',  'c_w1_n2_ask',  'c_w1_n2_bid',  'c_w1_n2_last',  'c_w1_n2_last_size',  'c_w1_n2_time_value',  'c_w1_n2_theta',  'c_w1_n1_ask',  'c_w1_n1_bid',  'c_w1_n1_last',  'c_w1_n1_last_size',  'c_w1_n1_time_value',  'c_w1_n1_theta',  'c_w1_p1_ask',  'c_w1_p1_bid',  'c_w1_p1_last',  'c_w1_p1_last_size',  'c_w1_p1_time_value',  'c_w1_p1_theta',  'c_w1_p2_ask',  'c_w1_p2_bid',  'c_w1_p2_last',  'c_w1_p2_last_size',  'c_w1_p2_time_value',  'c_w1_p2_theta',  'c_w1_p3_ask',  'c_w1_p3_bid',  'c_w1_p3_last',  'c_w1_p3_last_size',  'c_w1_p3_time_value',  'c_w1_p3_theta',  'c_w2_n3_ask',  'c_w2_n3_bid',  'c_w2_n3_last',  'c_w2_n3_last_size',  'c_w2_n3_time_value',  'c_w2_n3_theta',  'c_w2_n2_ask',  'c_w2_n2_bid',  'c_w2_n2_last',  'c_w2_n2_last_size',  'c_w2_n2_time_value',  'c_w2_n2_theta',  'c_w2_n1_ask',  'c_w2_n1_bid',  'c_w2_n1_last',  'c_w2_n1_last_size',  'c_w2_n1_time_value',  'c_w2_n1_theta',  'c_w2_p1_ask',  'c_w2_p1_bid',  'c_w2_p1_last',  'c_w2_p1_last_size',  'c_w2_p1_time_value',  'c_w2_p1_theta',  'c_w2_p2_ask',  'c_w2_p2_bid',  'c_w2_p2_last',  'c_w2_p2_last_size',  'c_w2_p2_time_value',  'c_w2_p2_theta',  'c_w2_p3_ask',  'c_w2_p3_bid',  'c_w2_p3_last',  'c_w2_p3_last_size',  'c_w2_p3_time_value',  'c_w2_p3_theta',  'c_w3_n3_ask',  'c_w3_n3_bid',  'c_w3_n3_last',  'c_w3_n3_last_size',  'c_w3_n3_time_value',  'c_w3_n3_theta',  'c_w3_n2_ask',  'c_w3_n2_bid',  'c_w3_n2_last',  'c_w3_n2_last_size',  'c_w3_n2_time_value',  'c_w3_n2_theta',  'c_w3_n1_ask',  'c_w3_n1_bid',  'c_w3_n1_last',  'c_w3_n1_last_size',  'c_w3_n1_time_value',  'c_w3_n1_theta',  'c_w3_p1_ask',  'c_w3_p1_bid',  'c_w3_p1_last',  'c_w3_p1_last_size',  'c_w3_p1_time_value',  'c_w3_p1_theta',  'c_w3_p2_ask',  'c_w3_p2_bid',  'c_w3_p2_last',  'c_w3_p2_last_size',  'c_w3_p2_time_value',  'c_w3_p2_theta',  'c_w3_p3_ask',  'c_w3_p3_bid',  'c_w3_p3_last',  'c_w3_p3_last_size',  'c_w3_p3_time_value', 'c_w3_p3_theta']
-    have_cols = list(projection.columns)
-    if len(set(needed_cols) - set(have_cols)) > 0:
-        print("*****************************************")
-        print(f"missing cols: {set(needed_cols) - set(have_cols)}")
-        print(f"have cols: {set(have_cols)}")
-        print(f"needed cols: {set(needed_cols)}")
-
-    # projection.drop(axis=1, columns=['time', 'p60s_delta', 'p300s_delta'], inplace=True)
-    #projection.dropna(axis=0, how='any', inplace=True)
     projection.to_csv(outfile, float_format='%.6f', index=False)
-    sys.exit(0)  # something wrong with looping. =( =(
+    # sys.exit(0)  # something wrong with looping. =( =(
 
 
 if __name__ == "__main__":
@@ -287,18 +239,23 @@ if __name__ == "__main__":
 
     pd.set_option('display.max_columns', None)
     config = FileUtil.readConfig(sys.argv[1])
-    symbol = config["stock"]
+    symbol_m = config["stock"]
 
-    data_dir = os.getcwd() + "/" + config["ib"]["data_dir"] + "/"
-    out_dir = os.getcwd() + "/" + config["ml18"]["data_dir"] + "/"
+    data_dir_m = os.getcwd() + "/" + config["ib"]["data_dir"] + "/"
+    out_dir_m = os.getcwd() + "/" + config["ml18"]["data_dir"] + "/"
 
-    print("Main scanning: " + data_dir)
+    print("Main scanning: " + data_dir_m)
 
-    for rootdir, dirs, files in os.walk(data_dir):
+    file_list = []
+    for rootdir, dirs, files in os.walk(data_dir_m):
         for subdir in dirs:
             full_dir = os.path.join(rootdir, subdir)
-            search_mask1 = full_dir + "/ol_" + symbol + '*.csv'
-            search_mask2 = full_dir + "/" + symbol + '*.zip'
-            if glob.glob(search_mask1) or glob.glob(search_mask2):
-                main(full_dir, symbol)
+            search_mask = full_dir + "/" + symbol_m + '*.zip'
+            file_list += glob.glob(search_mask)
+            #if glob.glob(search_mask1) or glob.glob(search_mask2):
+            #    main(full_dir, symbol)
 
+
+    file_list.sort()
+    for zip_file in file_list:
+        main(zip_file, out_dir_m, symbol_m)
