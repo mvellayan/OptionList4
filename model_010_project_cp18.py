@@ -117,9 +117,6 @@ def loadBasicData(in_zip_file, symbol):
         else:
             pdStockQuotes = pdStockQuotes.append(curPd, ignore_index=True)
 
-    if pdStockQuotes is None:
-        return False
-
     pdStockQuotes["bid_ask_delta"] = pdStockQuotes["bid"] - pdStockQuotes["ask"]
 
     # No files in the directory
@@ -135,7 +132,7 @@ def loadBasicData(in_zip_file, symbol):
         if pdOptionList is None:
             pdOptionList = ol
         else:
-            pdOptionList = pdStockQuotes.append(ol, ignore_index=True)
+            pdOptionList = pdOptionList.append(ol, ignore_index=True)
     pdOptionList.drop_duplicates(inplace=True, subset=['con_id'])
 
     # 3. Load variable : expiryList
