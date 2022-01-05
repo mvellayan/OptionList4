@@ -332,6 +332,11 @@ def compressCSVFiles(dir):
     print("In directory [", dir, "] processed/deleted file count: [", ctr, "]")
 
 
+def print_missing_cols(sought_cols: list, act_columns: list):
+    print("\t missing: ", list(set(sought_cols) - set(act_columns)))
+    print("\ttoo many:", list(set(act_columns) - set(sought_cols)))
+
+
 if __name__ == "__main__":
     if len(sys.argv) > 1: compressCSVFiles(sys.argv[1])
     # log = setup_logging("FileUtil.log")
