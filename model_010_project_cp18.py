@@ -1,8 +1,11 @@
 import argparse
 import logging
+import math
 import shutil
 from datetime import datetime, timedelta, date
 import glob, sys, os
+
+import numpy as np
 import pandas as pd
 from pprint import pprint
 import pytz
@@ -135,6 +138,7 @@ def loadBasicData(in_zip_file, symbol):
             pdOptionList = pdOptionList.append(ol, ignore_index=True)
     pdOptionList.drop_duplicates(inplace=True, subset=['con_id'])
 
+
     # 3. Load variable : expiryList
     expiryList = IBUtil.get_expiry_list(pdStockQuotes[['time']].values[0][0], 3, pdOptionList)
 
@@ -167,6 +171,11 @@ def loadBasicData(in_zip_file, symbol):
     # 7. Done!!
     return True
 
+def bucket_it2(col_val, q_array):
+    if pd.isna(col_val): return np.NaN
+    for i in range(len(q_array)):
+        if col_val <= q_array[i]: return str(i) + "_p"
+    return str(len(q_array)) + "_p"
 
 def main(in_zip_file, out_dir, symbol: str):
     global pdStockQuotes, pdOptionList, pdOptionQuotesIdx, expiryList, projection, df, pdOptionList3wC
@@ -198,7 +207,6 @@ def main(in_zip_file, out_dir, symbol: str):
     total_lookup = len(pdStockQuotes) * 18
 
     df = pdStockQuotes.apply(lambda x: expandX(x['time'], x['con_id'], x['last']), axis=1, result_type='expand')
-
     projection = pdStockQuotes.merge(df, on="time", how="outer")
     # for col in projection.columns: print(f"{ctr}: {col}")
 
@@ -208,27 +216,20 @@ def main(in_zip_file, out_dir, symbol: str):
     #bucket_labels = [ bucket_p5s, bucket_p15s....]
 
     for ctr_bucket_labels in range(len(bucket_labels)):
-
-        # Build a list value labels for quartiles
-        bin_labels = []
-        for i_ctr in range(delta_quarts[ctr_bucket_labels]):
-            bin_labels.append(delta_labels[ctr_bucket_labels] + "_" + str(i_ctr+1) + "_of_" + str(delta_quarts[ctr_bucket_labels]))
-
-        try:
-            new_col = bucket_labels[ctr_bucket_labels]
-            from_col = delta_labels[ctr_bucket_labels] + '_delta'
-            no_of_bins = delta_quarts[ctr_bucket_labels]
-            print(f"ctr_bucket_labels={ctr_bucket_labels} new_col_name={new_col} from_col = {from_col} no_bins={no_of_bins} w/ labels=[{bin_labels}]")
-            projection[new_col] = pd.qcut(x=df[ from_col], q=no_of_bins,
-                                           duplicates='drop', labels=bin_labels)
-        except ValueError:
-            print (" NotEnoughValues Value Error for:")
-            print(f"ctr_bucket_labels={ctr_bucket_labels} new_col_name={new_col} from_col = {from_col} no_bins={no_of_bins} w/ labels=[{bin_labels}]")
-            projection[bucket_labels[ctr_bucket_labels]] = "NotEnoughValues"
+        new_col = bucket_labels[ctr_bucket_labels]
+        from_col = delta_labels[ctr_bucket_labels] + '_delta'
+        no_bins = delta_quarts[ctr_bucket_labels]
+        min_val = projection[from_col].min()
+        max_val = projection[from_col].max()
+        range_value = (max_val - min_val) / no_bins
+        from_series = projection[from_col].squeeze()
+        quartile_vals = from_series.quantile(np.linspace(start=0, stop=1, num=(no_bins+1)), 'lower').tolist()
+        quartile_vals.pop(0)
+        print(f"ctr={ctr_bucket_labels}: {new_col} from_col={from_col} "
+              f"bins={no_bins} min={min_val:.3f} max={max_val:.3f} range={range_value:.3f} {quartile_vals}]")
+        projection[new_col] = projection.apply(lambda x: bucket_it2(x[from_col], quartile_vals), axis=1, result_type='expand')
 
     projection.to_csv(outfile, float_format='%.6f', index=False)
-    # sys.exit(0)  # something wrong with looping. =( =(
-
 
 if __name__ == "__main__":
 

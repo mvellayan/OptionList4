@@ -65,6 +65,10 @@ def build_xgb_model(in_data_file, out_model_file, X_columns, y_column):
         df_by_hour = X.groupby('hour').count()
 
         y = X[y_column].to_frame()
+        print("ya type = ", y.dtypes)
+        y = y[y_column].astype(str)
+        print("yb type = ", y.dtypes)
+
         X = X.drop([y_column], axis=1, inplace=False)
         X = X.drop(['hour'], axis=1, inplace=False)
         X = X.drop(['time'], axis=1, inplace=False)
@@ -93,9 +97,10 @@ def build_xgb_model(in_data_file, out_model_file, X_columns, y_column):
         '_kfold': 5,
         # 'objective': 'validation:accuracy',
         'objective': 'multi:softprob',
-        'enable_categorical': True,
+        'enable_categorical': False,
         '_tuning_objective_metric': 'validation:f1',
         'eval_metric': 'auc',
+        # 'tree_method': 'gpu_hist',
         # 'eval_metric': 'accuracy,f1',
         # 'eval_metric':'merror',
         # 'eval_metric': 'accuracy,f1X',
@@ -119,8 +124,11 @@ def build_xgb_model(in_data_file, out_model_file, X_columns, y_column):
     # 'Xgamma': 0.10919583822903917   ## what is this??
 
     xgb = XGBClassifier(**params)
-    y_values = y.values
+    y2 = y.astype(str)
+    y_values = y2.values
     y_values_ravel = y_values.ravel()
+    print("y type = ", y2.dtypes)
+    print("X types = ", X.dtypes)
     xgb.fit(X, y_values_ravel)
     # pred = xgb.predict(X_test)
     # categories = y[y_column].unique().tolist()
@@ -166,7 +174,7 @@ def build_xgb_model(in_data_file, out_model_file, X_columns, y_column):
 if __name__ == "__main__":
     config = FileUtil.readConfig(sys.argv[1])
     data_dir = os.getcwd() + "/" + config["ml18"]["data_dir"] + "/"
-    search_mask1 = data_dir + "/" + "ml_*.csv"
+    search_mask1 = data_dir + "/" + "ml_cp18_AAPL20211109.csv"
     print(search_mask1)
     for data_file in glob.glob(search_mask1):
         print(data_file)
