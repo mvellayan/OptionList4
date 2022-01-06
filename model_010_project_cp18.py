@@ -174,8 +174,8 @@ def loadBasicData(in_zip_file, symbol):
 def bucket_it2(col_val, q_array):
     if pd.isna(col_val): return np.NaN
     for i in range(len(q_array)):
-        if col_val <= q_array[i]: return str(i) + "_p"
-    return str(len(q_array)) + "_p"
+        if col_val <= q_array[i]: return str(i) # + "_p"
+    return str(len(q_array)) # + "_p"
 
 def main(in_zip_file, out_dir, symbol: str):
     global pdStockQuotes, pdOptionList, pdOptionQuotesIdx, expiryList, projection, df, pdOptionList3wC

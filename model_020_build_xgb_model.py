@@ -34,7 +34,7 @@ for s in delta_labels:
 # needed_cols = ['c_w1_n1_time_value', 'c_w1_n1_theta', 'c_w1_n2_time_value', 'c_w1_n2_theta', 'c_w1_n3_time_value', 'c_w1_n3_theta', 'c_w1_p1_time_value', 'c_w1_p1_theta', 'c_w1_p2_time_value', 'c_w1_p2_theta', 'c_w1_p3_time_value', 'c_w1_p3_theta', 'c_w2_n1_time_value', 'c_w2_n1_theta', 'c_w2_n2_time_value', 'c_w2_n2_theta', 'c_w2_n3_time_value', 'c_w2_n3_theta', 'c_w2_p1_time_value', 'c_w2_p1_theta', 'c_w2_p2_time_value', 'c_w2_p2_theta', 'c_w2_p3_time_value', 'c_w2_p3_theta', 'c_w3_n1_time_value', 'c_w3_n1_theta', 'c_w3_n2_time_value', 'c_w3_n2_theta', 'c_w3_n3_time_value', 'c_w3_n3_theta', 'c_w3_p1_time_value', 'c_w3_p1_theta', 'c_w3_p2_time_value', 'c_w3_p2_theta', 'c_w3_p3_time_value', 'c_w3_p3_theta', 'n5s_delta', 'n15s_delta', 'n30s_delta', 'n60s_delta']
 needed_cols = ['c_w1_n1_theta',  'c_w1_n2_theta',  'c_w1_n3_theta',  'c_w1_p1_theta',  'c_w1_p2_theta',  'c_w1_p3_theta',  'c_w2_n1_theta',  'n5s_delta', 'n15s_delta', 'n30s_delta', 'n60s_delta']
 
-def build_xgb_model(in_data_file, out_model_file, X_columns, y_column):
+def build_xgb_model(in_data_file, X_columns, y_column,  out_model_file=None, debugging=False):
 
     # expecting a list of comma seperated files.
     if type(in_data_file) is not list:
@@ -65,9 +65,7 @@ def build_xgb_model(in_data_file, out_model_file, X_columns, y_column):
         df_by_hour = X.groupby('hour').count()
 
         y = X[y_column].to_frame()
-        print("ya type = ", y.dtypes)
-        y = y[y_column].astype(str)
-        print("yb type = ", y.dtypes)
+        y = y[y_column]
 
         X = X.drop([y_column], axis=1, inplace=False)
         X = X.drop(['hour'], axis=1, inplace=False)
@@ -83,8 +81,6 @@ def build_xgb_model(in_data_file, out_model_file, X_columns, y_column):
         print(f" cant find all cols for file {in_data_file}")
         print_missing_cols(X_columns, list(data.columns))
         raise Exception("MissingColumns.")
-
-    # X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.2, random_state=42)
 
     # grid search URL: https://towardsdatascience.com/fine-tuning-xgboost-model-257868cf4187
     q_idx = delta_labels.index(y_column.replace("_bucket", ""))
@@ -122,54 +118,49 @@ def build_xgb_model(in_data_file, out_model_file, X_columns, y_column):
     # 'num_round': 736,
     # 'subsample' : 0.928443173145351
     # 'Xgamma': 0.10919583822903917   ## what is this??
-
     xgb = XGBClassifier(**params)
-    y2 = y.astype(str)
-    y_values = y2.values
-    y_values_ravel = y_values.ravel()
-    print("y type = ", y2.dtypes)
-    print("X types = ", X.dtypes)
-    xgb.fit(X, y_values_ravel)
-    # pred = xgb.predict(X_test)
-    # categories = y[y_column].unique().tolist()
 
-    # frog_cm = confusion_matrix(y_test, pred)
-    # frog_cm_pct = frog_cm.astype('float') / frog_cm.sum(axis=1)[:, np.newaxis]
+    if not debugging:
+        y_values = y.values
+        y_values_ravel = y_values.ravel()
+        xgb.fit(X, y_values_ravel)
+        xgb.save_model(out_model_file)
+        return xgb, no_rows, no_na_rows, df_by_hour
+    else:
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        xgb.fit(X_train, y_train)
+        y_pred = xgb.predict(X_test)
+        categories = y.unique().tolist()
+        categories.sort()
 
-    # np.set_printoptions(precision=2)
-    from numpy import sort
+        cm = confusion_matrix(y_test, y_pred)
+        cm_pct = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
 
-    # features = pd.DataFrame()
-    # features['name'] = xgb.get_booster().feature_names
-    # features['importance'] = xgb.feature_importances_
-    # features.columns =['name', 'importance']
-    # features.sort_values(by=['importance'], ascending=False, inplace=True)
-    # ctr = 0
-    # for i in features.itertuples():
-    #     features.at[i.Index, 'rank'] = 'rank ' + str(round(ctr))
-    #     features.at[i.Index, 'index'] = str(int(i.Index))
-    #      ctr += 1
-    #
-    # pd.set_option('display.max_rows', 200)
-    # with open(results_file, 'w') as out_file:
-    #     with redirect_stdout(out_file):
-    #         print(f"XGB Model Created at: { datetime.now().strftime('%m-%d-%Y %H:%M:%S')}")
-    #         print("\n\n")
-    #         print(xgb)
-    #         print("\n\n")
-    #         print(f"Overall Accuracy: {accuracy_score( y_test, pred ):.3f}")
-    #         print("\n\n")
-    #         print(classification_report(y_test, pred, target_names=categories))
-    #         print("\n\n")
-    #         print(frog_cm)
-    #         print("\n\n")
-    #         print(frog_cm_pct)
-    #         print("Column Priority    -------------------------------------------------------")
-    #         print(features)
-    #         print("-------------------------------------------------------------------------")
-    #         # summarize feature importance
-    xgb.save_model(out_model_file)
-    return xgb, no_rows, no_na_rows, df_by_hour
+        np.set_printoptions(precision=2)
+        from numpy import sort
+
+        features = pd.DataFrame()
+        features['name'] = xgb.get_booster().feature_names
+        features['importance'] = xgb.feature_importances_
+        features.columns =['name', 'importance']
+        features.sort_values(by=['importance'], ascending=False, inplace=True)
+        ctr = 0
+        for i in features.itertuples():
+            features.at[i.Index, 'rank'] = 'rank ' + str(round(ctr))
+            features.at[i.Index, 'index'] = str(int(i.Index))
+            ctr += 1
+
+        pd.set_option('display.max_rows', 200)
+        print(f"XGB Model Created at: { datetime.now().strftime('%m-%d-%Y %H:%M:%S')}")
+        print(xgb)
+        print(f"Overall Accuracy: {accuracy_score( y_test, y_pred ):.3f}")
+        print(classification_report(y_test, y_pred, labels=categories, target_names=categories))
+        print(cm)
+        print(cm_pct)
+        print("Column Priority    -------------------------------------------------------")
+        print(features)
+        print("-------------------------------------------------------------------------")
+        # summarize feature importance
 
 if __name__ == "__main__":
     config = FileUtil.readConfig(sys.argv[1])
@@ -179,10 +170,10 @@ if __name__ == "__main__":
     for data_file in glob.glob(search_mask1):
         print(data_file)
         model_file = data_file.replace(".csv", "_p5.json")
-        build_xgb_model(in_data_file=data_file,  out_model_file=model_file, X_columns=needed_cols, y_column="p5s_bucket")
+        build_xgb_model(in_data_file=data_file, X_columns=needed_cols, y_column="p5s_bucket", debugging=True)
         model_file = data_file.replace(".csv", "_p15.json")
-        build_xgb_model(in_data_file=[data_file], out_model_file=model_file,  X_columns=needed_cols, y_column="p15s_bucket")
+        build_xgb_model(in_data_file=[data_file],  X_columns=needed_cols, y_column="p15s_bucket", debugging=True)
         model_file = data_file.replace(".csv", "_p30.json")
-        build_xgb_model(in_data_file=[data_file],  out_model_file=model_file,  X_columns=needed_cols, y_column="p30s_bucket")
+        build_xgb_model(in_data_file=[data_file],  X_columns=needed_cols, y_column="p30s_bucket", debugging=True)
         model_file = data_file.replace(".csv", "_p60.json")
-        build_xgb_model(in_data_file=[data_file],  out_model_file=model_file,  X_columns=needed_cols, y_column="p60s_bucket")
+        build_xgb_model(in_data_file=[data_file],  X_columns=needed_cols, y_column="p60s_bucket", debugging=True)

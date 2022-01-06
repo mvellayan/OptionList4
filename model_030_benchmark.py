@@ -167,14 +167,15 @@ def test_fit(xgb_l, test_file_ctr_l, test_file_l, X_columns, y_column):
 
     pred = xgb_l.predict(X)
     categories = y[y_column].unique().tolist()
+    categories.sort()
 
-    out_write(f"|Accuracy| <h4> {accuracy_score(y, pred)*100:.1f}% </h4>|\n\n\n")
+    out_write(f"|Accuracy| <h4> {accuracy_score(y[y_column].ravel(), pred)}% </h4>|\n\n\n")
 
     # pred_df = pd.DataFrame(pred, columns=categories)
     pred_df = pd.DataFrame(pred, columns=["prediction"])
     # pred_df['prediction'] = pred_df.apply(lambda x: expandX(x.tolist(), categories), axis=1, result_type='expand')
 
-    cm = confusion_matrix(pred_df['prediction'], y[y_column])
+    cm = confusion_matrix(pred_df['prediction'], y[y_column], labels=categories)
     cm_pd = pd.DataFrame(cm, index=categories, columns=categories)
 
     cm_pct = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
