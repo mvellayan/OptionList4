@@ -86,7 +86,8 @@ def create_xgb_model(in_data_file, out_model_file, X_columns, y_column):
             f"|<div  style='background-color:red'>>Some of the needed cols are missing </div>| {list(set(X_columns))}|\n\n\n")
         return
 
-    out_write(f"<h1 style='background-color:#b2691f'>Model Specs {datetime.now().strftime('%m-%d-%Y %H:%M:%S')}</h1>\n\n")
+    out_write(f"<h1 style='background-color:#b2691f'>{results_file}</h1>\n\n")
+    out_write(f"#### {datetime.now().strftime('%m-%d-%Y %H:%M:%S')}\n\n")
     out_write("|Attributes|Values|\n|-|-|\n")
     out_write(f"|Model file(s)|{',</br> '.join(in_data_file)}\n")
     out_write(f"|Model row count|<h4>{no_na_rows:,} nn /  {no_rows:,} total rows</h4>|\n")
@@ -118,7 +119,7 @@ def create_xgb_model(in_data_file, out_model_file, X_columns, y_column):
 
     out_write("\n\n</td><td>")
     out_write(f"y column: <h3>{y_column}</h3>|\n")
-    out_write(f"{features.to_html()}")
+    out_write(f"{features.to_html(float_format='{:3.2f}'.format)}")
 
     i = 1
     str_arr = xgb_l.__str__().split(",")
@@ -158,7 +159,6 @@ def test_fit(xgb_l, test_file_ctr_l, test_file_l, X_columns, y_column):
             return
 
     except KeyError as e:
-        print("********************************************************")
         out_write(f"|<div  style='background-color:red'>>Missing needed cols</div>| {list(set(X_columns) - set(test_data.columns))}\n\n\n")
         return
 
@@ -169,7 +169,7 @@ def test_fit(xgb_l, test_file_ctr_l, test_file_l, X_columns, y_column):
     categories = y[y_column].unique().tolist()
     categories.sort()
 
-    out_write(f"|Accuracy| <h4> {accuracy_score(y[y_column].ravel(), pred)}% </h4>|\n\n\n")
+    out_write(f"|Accuracy| <h4> {(accuracy_score(y[y_column].ravel(), pred)):.3f}% </h4>|\n\n\n")
 
     # pred_df = pd.DataFrame(pred, columns=categories)
     pred_df = pd.DataFrame(pred, columns=["prediction"])
@@ -184,7 +184,7 @@ def test_fit(xgb_l, test_file_ctr_l, test_file_l, X_columns, y_column):
     out_write("<table><tr><td>")
     out_write(f"{cm_pd.to_html()}")
     out_write("</td><td>")
-    out_write(f"{cm_pct_pd.to_html()}")
+    out_write(f"{cm_pct_pd.to_html(float_format='{:3.2f}'.format)}")
     out_write("</td></tr></table>")
 
     np.set_printoptions(precision=2)
@@ -193,12 +193,16 @@ def test_fit(xgb_l, test_file_ctr_l, test_file_l, X_columns, y_column):
 
 results_file = None
 
-def iterate_product(model_file_list, test_file_pattern, X_cols_list, y_col):
+def iterate_product(model_file_list, test_file_pattern, X_cols_list, y_col, run_no=0):
     global results_file
     #
-    results_file = model_file_list[0].replace(".csv", "_" + FileUtil.getDateTimeStamp(1) + ".md")
     # set file names
+    in_data_file_count = len(model_file_list)
+    data_file_count = len(glob.glob(test_file_pattern))
+    results_file = f"{model_file_list[0][:model_file_list[0].rfind('/')]}/r{run_no}_{y_col}" \
+                   f"_{in_data_file_count}_{data_file_count}.md"
     model_file = model_file_list[0].replace(".csv", "_" + FileUtil.getDateTimeStamp(1) + ".json")
+
     #
     # build model
     xgb_l = create_xgb_model(in_data_file=model_file_list, out_model_file=model_file,
@@ -215,10 +219,10 @@ def iterate_product(model_file_list, test_file_pattern, X_cols_list, y_col):
 
 def plan_iterate_product():
     X_cols = [
-        theta_pos,
-        theta_neg,
-        theta_pos_w1 + theta_pos_w2,
-        theta_pos + theta_neg,
+        # theta_pos,
+        # theta_neg,
+        # theta_pos_w1 + theta_pos_w2,
+        # theta_pos + theta_neg,
 
         n_buckets_short,
         n_buckets,
@@ -226,21 +230,22 @@ def plan_iterate_product():
         theta_pos + theta_neg + n_buckets,
         theta_pos_w1 + theta_pos_w2 + n_buckets,
 
-        theta_w1,
-        theta_w2,
-        theta_w1 + theta_w2,
-        theta_w1 + theta_w2 + theta_w3,
-        theta_w1 + theta_w2 + theta_w3 + n_buckets
+        # theta_w1,
+        # theta_w2,
+        # theta_w1 + theta_w2,
+        # theta_w1 + theta_w2 + theta_w3,
+        # theta_w1 + theta_w2 + theta_w3 + n_buckets
     ]
     y_cols = [ 'p5s_bucket', 'p15s_bucket', 'p30s_bucket', 'p60s_bucket', 'p300s_bucket', 'p600s_bucket']
     model_file_list = ['ml_cp18/ml_cp18_AAPL20211124.csv', 'ml_cp18/ml_cp18_AAPL20211123.csv']
     test_file_pattern = "ml_cp18/ml_cp18_AAPL202111*.csv"
+    ts = FileUtil.getDateTimeStamp(1)[:6]
 
     index = 1
     for x_col in X_cols:
         for y_col in y_cols:
-            print(index, x_col, y_col)
-            iterate_product(model_file_list, test_file_pattern, x_col, y_col)
+            run_no = f"{ts}_{index:03d}"
+            iterate_product(model_file_list, test_file_pattern, x_col, y_col, run_no=run_no)
             index += 1
             # if index > 4:
             #     print ("STOPPING at 4 runs.")
@@ -252,6 +257,7 @@ if __name__ == "__main__":
     # expecting a list of comma serperated files.
     pd.set_option('display.max_rows', 200)
     ## globals
+
     theta_neg_w1 = ['c_w1_n1_theta', 'c_w1_n2_theta', 'c_w1_n3_theta']
     theta_neg_w2 = ['c_w2_n1_theta', 'c_w2_n2_theta', 'c_w2_n3_theta']
     theta_neg_w3 = ['c_w3_n1_theta', 'c_w3_n2_theta', 'c_w3_n3_theta']
@@ -268,8 +274,6 @@ if __name__ == "__main__":
     tv_pos_w2 = ['c_w2_p1_time_value', 'c_w2_p2_time_value', 'c_w2_p3_time_value']
     tv_pos_w3 = ['c_w3_p1_time_value', 'c_w3_p2_time_value', 'c_w3_p3_time_value']
 
-    delta_short = ['n5s_delta', 'n15s_delta', 'n30s_delta', 'n60s_delta']
-    delta_long = ['n300s_delta', 'n600s_delta']
     n_buckets_short = ['n5s_bucket', 'n15s_bucket', 'n30s_bucket', 'n60s_bucket']
     n_buckets_long = ['n300s_bucket', 'n600s_bucket']
 
