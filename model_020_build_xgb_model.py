@@ -102,16 +102,17 @@ def build_xgb_model(in_data_file, X_columns, y_column,  out_model_file=None, deb
         # 'eval_metric': 'accuracy,f1X',
         # Muthu params
         'subsample': 0.75,  # Setting it to 0.5 means that XGBoost would randomly sample half of the training data prior to growing trees. and this will prevent overfitting.
-        'gamma': 0.0001, # Minimum loss reduction required to make a further partition on a leaf node of the tree. The larger gamma is, the more conservative the algorithm will be
-        'alpha': 1.0, # L1 regularization is Lasso Regression wich adds “squared magnitude” of coefficient as penalty term to the loss functi
-        'lambda': 0.0, # L2 regularization is Ridge Regression which adds “absolute value of magnitude” of coefficient as penalty term to the loss function.
+        'gamma': 0.001, # Minimum loss reduction required to make a further partition on a leaf node of the tree. The larger gamma is, the more conservative the algorithm will be
+        'alpha': 0.0, # L1 regularization is Lasso Regression wich adds “squared magnitude” of coefficient as penalty term to the loss functi
+        'lambda': 1.0, # L2 regularization is Ridge Regression which adds “absolute value of magnitude” of coefficient as penalty term to the loss function.
         'eta': 0.03, # Step size shrinkage used in update to prevents overfitting
-        'min_child_weight': 0.005, # Minimum sum of instance weight (hessian) needed in a child the building process will give up further partitioning.
+        'min_child_weight': 0.05, # Minimum sum of instance weight (hessian) needed in a child the building process will give up further partitioning.
         'num_class': bin_counts,
         # not too sure.
         'max_depth': 10,  # Maximum tree depth for base learners.
-        'early_stopping_rounds': 10,  # don't over fit
-        'num_round': 100  # num_boost_round == num_boost_round
+        'early_stopping_rounds': 50,  # don't over fit
+        'num_round': 100,  # num_boost_round == num_boost_round
+        'use_label_encoder': False # UserWarning: The use of label encoder in XGBClassifier is deprecated...
     }
     # 'colsample_bytree' : 0.5781314251524922,            #on hold
     # 'min_child_weight' : 1.0421388863448751e-05
