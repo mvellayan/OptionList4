@@ -124,7 +124,8 @@ def build_xgb_model(in_data_file, X_columns, y_column,  out_model_file=None, deb
         y_values = y.values
         y_values_ravel = y_values.ravel()
         xgb.fit(X, y_values_ravel)
-        xgb.save_model(out_model_file)
+        if out_model_file is not None:
+            xgb.save_model(out_model_file)
         return xgb, no_rows, no_na_rows, df_by_hour
     else:
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
