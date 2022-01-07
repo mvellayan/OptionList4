@@ -1,6 +1,7 @@
 import argparse
 import itertools
 import logging
+import random
 import shutil
 from contextlib import redirect_stdout
 from datetime import datetime, timedelta, date
@@ -16,11 +17,12 @@ import xgboost as xgb
 from sklearn.metrics import classification_report, confusion_matrix
 import matplotlib.pylab as plt
 import seaborn as sns
-from sklearn.metrics import accuracy_score
 from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.metrics import recall_score, f1_score, precision_score, precision_recall_fscore_support
+from sklearn.metrics import accuracy_score
 
 import model_020_build_xgb_model
 from utils import FileUtil, IBUtil
@@ -112,9 +114,10 @@ def test_fit(xgb_l, test_file, X_columns, y_column):
     pred = xgb_l.predict(X)
     categories = y[y_column].unique().tolist()
     categories.sort()
-
+    np.set_printoptions(formatter={'int_kind': '{:,}'.format})
     accuracy = accuracy_score(y[y_column].ravel(), pred)
-    accuracy_str = f"{(accuracy_score(y[y_column].ravel(), pred)):.3f} %"
+    precision, recall, f1, y_true = precision_recall_fscore_support(y[y_column].ravel(), pred, average=None)
+    accuracy_str = f"accuracy {accuracy:.3f}<br/>recall {recall.round(3)}<br/>precision {precision.round(3)}<br/>f1 {f1.round(3)}<br/>tp {y_true}"
 
     # pred_df = pd.DataFrame(pred, columns=categories)
     pred_df = pd.DataFrame(pred, columns=["prediction"])
@@ -137,12 +140,12 @@ results_file = None
 
 def create_table():
     global results_file
-    X_sets = list(itertools.combinations(all_X, 4))  # 22c4 =7314; 22c3=1540, 22c5=26,334
+    X_sets_p = list(itertools.combinations(all_X, 6))  # 22c4 =7314; 22c3=1540, 22c5=26,334  22c9=497420
+    set_max = len(X_sets_p)
+    X_sets = [X_sets_p[random.randrange(0,set_max)] for i in range(5000)]
     # permute X_cols
-
     ts = FileUtil.getDateTimeStamp(1)[:6]
-
-    results_file = f"{model_file_list[0][:model_file_list[0].rfind('/')]}/run_{ts}.md"
+    results_file = f"{model_file_list[0][:model_file_list[0].rfind('/')]}/run_{ts}.html"
 
     row = 0
     col = 0
@@ -150,6 +153,8 @@ def create_table():
     for x_set in X_sets:
 
         if row == 0:
+            out_write("<html><head><style type='text/css'> table { border: 1px solid black; } th "
+                      "{ background-color: Gainsboro; } tr:nth-child(even) { background-color: Cornsilk; }</style></head>")
             out_write('<table style="table, th, td { border: 1px solid black; border-radius: 10px;"}><tr><th>Features</th>')
             for c in y_cols:
                 out_write(f"<th>{c}</th>")
@@ -162,21 +167,23 @@ def create_table():
                 out_write(f"<td>{row}:  <br/> {x_set}</td>")
                 col += 1
 
-            xgb_l, features_table, row_count_table, no_rows, no_na_rows = create_xgb_model(
+            xgb_l, features_table, row_count_table, m_no_rows, m_no_na_rows = create_xgb_model(
                 in_data_file=model_file_list, X_columns=x_set, y_column=y_col)
             # run_no = f"{ts}_{index:03d}"
-            no_na_rows, no_rows, accuracy_str, cm_html = test_fit(xgb_l, test_file, X_columns=x_set, y_column=y_col)
+            t_no_na_rows, t_no_rows, accuracy_str, cm_html = test_fit(xgb_l, test_file, X_columns=x_set, y_column=y_col)
             #os.remove(model_file)
 
             out_write('<td><table style="table, th, td { border: 1px solid black; border-radius: 10px;}">\n')
-            out_write(f"<tr>\n\t<td>Modeling Rows:  {no_na_rows:,} nn / {no_rows:,} total</td><td>Accuracy: {accuracy_str} {y_col} </tr>\n")
+            out_write(f"<tr>\n\t<td><b>{y_col}</b><br/>train:  {m_no_na_rows:,} nn ({m_no_rows:,})"
+                      f"<br/>fit: {t_no_na_rows:,} nn ({t_no_rows:,}) </td>"
+                      f"<td>{accuracy_str}</tr>\n")
             out_write(f"<tr>\n\t<td>{features_table}</td>\n\t<td>{cm_html}</td>\n</tr>\n")
             out_write("</table></td>\n\n")
             col += 1
         out_write("</tr>")
         col = 0
         row += 1
-    out_write("</table>")
+    out_write("</table></html>")
     return
 
 
@@ -196,7 +203,7 @@ if __name__ == "__main__":
 
     deltas = ['n5s_delta', 'n15s_delta', 'n30s_delta', 'n60s_delta']
 
-    y_cols = [ 'p5s_bucket', 'p15s_bucket', 'p30s_bucket', 'p60s_bucket']
+    y_cols = ['p30s_bucket']  # ,  'p5s_bucket', 'p30s_bucket', 'p60s_bucket']
 
     model_file_list = ['ml_cp18/ml_cp18_AAPL20220104.csv', 'ml_cp18/ml_cp18_AAPL20220106.csv']
     test_file = "ml_cp18/ml_cp18_AAPL20220105-test.csv"
