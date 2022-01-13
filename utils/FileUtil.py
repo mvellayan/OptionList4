@@ -78,30 +78,25 @@ def makeDirectory(fileName):
                 #raise
 
 stock_quote_cache = {}
-
 def reset_quote_cache():
     global stock_quote_cache
     stock_quote_cache = {}
 
-def get_quote_with_delta(stockQuotes, quoteTime: datetime, delta: int):
+def get_value_with_delta(stockQuotes, quoteTime: datetime, delta: int, colAsk='last'):
 
     ## one time load cache.
     global stock_quote_cache
     if len(stock_quote_cache) == 0:
         for index, row in stockQuotes.iterrows():
-            stock_quote_cache[ row['time'] ] = row['last']
+            stock_quote_cache[row['time']]= row
 
     lastTrade = None
     for iter in range(3):
-        date_index : int = int(dateAdd(quoteTime, seconds=(delta+iter)))
-        lastTrade = stock_quote_cache.get(date_index, -1)
-        if lastTrade > -1: return lastTrade
+        date_index: int = int(dateAdd(quoteTime, seconds=(delta+iter)))
+        lastTrade = stock_quote_cache.get(date_index, None)
+        if lastTrade is not None: return lastTrade[colAsk]
 
-    if lastTrade > 0:
-        return lastTrade
-    else:
-        # print(f"couldn't find {date_index} of type {type(date_index)} =(")
-        return None
+    return None
 
 
 def dateAdd(inDate: datetime, minutes: int = 0, seconds: int = 0):

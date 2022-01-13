@@ -20,7 +20,7 @@ log = logging.getLogger("myLogger")
 log.setLevel(logging.INFO)
 
 delta_labels = ["p5s", "p15s", "p30s", "p60s", "p300s", "p600s", "n5s", "n15s", "n30s", "n60s", "n300s", "n600s"]
-delta_values = [5, 15, 30, 60, 300, 600, -5, -15, -30, -60, -300, -600]
+delta_values = [    5,     15,     30,     60,     300,     600,    -5,    -15,    -30,    -60,    -300,   -600]
 delta_quarts = [3, 3, 5, 5, 7, 7, 3, 3, 5, 5, 7, 7]
 bucket_labels = []
 for s in delta_labels:
@@ -48,12 +48,12 @@ def expandX(quoteTime, conId, quoteLast):
     retDict["time"] = quoteTime
     quoteDateObj = FileUtil.getDateObjFromStr(quoteTime)
 
-    retDict["p0"] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, 0)
+    retDict["p0"] = FileUtil.get_value_with_delta(pdStockQuotes, quoteDateObj, 0)
 
     for ctr_delta_labels in range(len(delta_labels)):
         label = delta_labels[ctr_delta_labels]
         value = delta_values[ctr_delta_labels]
-        retDict[label] = FileUtil.get_quote_with_delta(pdStockQuotes, quoteDateObj, value)
+        retDict[label] = FileUtil.get_value_with_delta(pdStockQuotes, quoteDateObj, value)
         if retDict[label]:
             retDict[label + "_delta"] = (retDict[label] - retDict["p0"])
 
@@ -171,11 +171,12 @@ def loadBasicData(in_zip_file, symbol):
     # 7. Done!!
     return True
 
-def bucket_it2(col_val, q_array):
-    if pd.isna(col_val): return np.NaN
-    for i in range(len(q_array)):
-        if col_val <= q_array[i]: return str(i) # + "_p"
-    return str(len(q_array)) # + "_p"
+def bucket_it2(column_value: float, dividing_value: float):
+    if pd.isna(column_value): return np.NaN
+    if column_value <= dividing_value:
+        return 0  + ( np.sign(dividing_value) * 2)
+    else:
+        return 1 + ( np.sign(dividing_value) * 2)
 
 def main(in_zip_file, out_dir, symbol: str):
     global pdStockQuotes, pdOptionList, pdOptionQuotesIdx, expiryList, projection, df, pdOptionList3wC
@@ -222,14 +223,29 @@ def main(in_zip_file, out_dir, symbol: str):
         min_val = projection[from_col].min()
         max_val = projection[from_col].max()
         range_value = (max_val - min_val) / no_bins
-        from_series = projection[from_col].squeeze()
-        quartile_vals = from_series.quantile(np.linspace(start=0, stop=1, num=(no_bins+1)), 'lower').tolist()
+        quartile_vals = []
+        for c in range(no_bins):
+            quartile_vals.append( min_val + round(c * range_value, 2))
+        ## not reliable functional mapping
+        # from_series = projection[from_col].squeeze()
+        # for q in from_series.quantile(np.linspace(start=0, stop=1, num=(no_bins+1)), 'lower').tolist():
+        #    quartile_vals.append( round(q, 2))
         quartile_vals.pop(0)
-        print(f"ctr={ctr_bucket_labels}: {new_col} from_col={from_col} "
-              f"bins={no_bins} min={min_val:.3f} max={max_val:.3f} range={range_value:.3f} {quartile_vals}]")
-        projection[new_col] = projection.apply(lambda x: bucket_it2(x[from_col], quartile_vals), axis=1, result_type='expand')
 
+        # print(f"ctr={ctr_bucket_labels}: {new_col} from_col={from_col} "
+        #      f"bins={no_bins} min={min_val:.3f} max={max_val:.3f} range={range_value:.3f} {quartile_vals}]")
+        projection[new_col ] = projection.apply(lambda x: bucket_it2(x[from_col], 0.0), axis=1, result_type='expand')
+
+        # pw = projection.groupby([new_col + "_l0"]).median()
+        # for index, row in pw.iterrows():
+        #     print(row[0], row[1])
+        #     if row[from_col] <= 0:
+        #          part_a = projection.loc[ projection[ new_col + "_l0"] <= 0].apply(lambda x: bucket_it2(x[from_col], row[from_col]), axis=1, result_type='expand')
+        #     else:
+        #         part_b  = projection.loc[ projection[ new_col + "_l0"] >  0].apply(lambda x: bucket_it2(x[from_col], row[from_col]), axis=1, result_type='expand')
+        #     # projection[new_col + "_l1"]
     projection.to_csv(outfile, float_format='%.6f', index=False)
+
 
 if __name__ == "__main__":
 
@@ -240,7 +256,7 @@ if __name__ == "__main__":
     symbol_m = config["stock"]
 
     data_dir_m = os.getcwd() + "/" + config["ib"]["data_dir"] + "/"
-    out_dir_m = os.getcwd() + "/" + config["ml18"]["data_dir"] + "/"
+    out_dir_m = os.getcwd() + "/" + config["ml18"]["data_dir"] + "/data/"
 
     print("Main scanning: " + data_dir_m)
 
