@@ -1,4 +1,5 @@
 import os
+import sys
 
 import mlflow
 import mlflow.xgboost
@@ -88,23 +89,46 @@ def load_data(file_list, x_cols_names, y_cols_names, data_type="data"):
     return X_features, y_features
 
 def run_model(scale_data=True):
+    params["feature_names"] = x_cols
     mlflow.log_param('Scaled', scale_data)
     mlflow.log_param('y_col', ', '.join(y_cols))
     mlflow.log_param('X_cols', ', '.join(x_cols))
     mlflow.log_param('XGB Params', params)
     # Create XGB Model
     x_train, y_train = load_data(model_file_list, x_cols, y_cols, data_type="Training")
+
     xgb = XGBClassifier(**params)
 
     # Load Test Data
     x_test, y_test = load_data([test_file], x_cols, y_cols, data_type="Testing")
+    import matplotlib.image as mpimg
+
+    fig, ax = plt.subplots()
+    sns.set(rc={'figure.figsize': (12, 9)})
+    # x_train.plot.hist(alpha=0.5)
+    x_train.hist()
+    plt.savefig("TrainingHistogram.png")
+    #mlflow.log_figure(fig, "TrainingHistogram.png")
+    mlflow.log_image(mpimg.imread("TrainingHistogram.png"), "TrainingHistogram.png")
+    # plt.show()
 
     # Standard Scaled X Prediction
     if scale_data:
         scalar = StandardScaler()
         scalar.fit(x_train)
-        x_train = scalar.transform(x_train)
-        x_test = scalar.transform(x_test)
+        x_train = pd.DataFrame(scalar.transform(x_train), columns=scalar.get_feature_names(x_train.columns))
+        x_test = pd.DataFrame(scalar.transform(x_test), columns=scalar.get_feature_names(x_test.columns))
+        #x_train = scalar.transform(x_train)
+        #x_test = scalar.transform(x_test)
+
+    fig, ax = plt.subplots()
+    sns.set(rc={'figure.figsize': (12, 9)})
+    # x_train.plot.hist(alpha=0.5)
+    x_train.hist()
+    plt.savefig("TrainingHistogramScaled.png")
+    mlflow.log_image(mpimg.imread("TrainingHistogramScaled.png"), "TrainingHistogramScaled.png")
+    #mlflow.log_figure(fig, "TrainingHistogramScaled.png")
+    # plt.show()
 
     # Train model & predict
     xgb.fit(x_train, y_train[y_cols])
@@ -130,28 +154,29 @@ def run_model(scale_data=True):
                             f'y_true-{idx}': y_true[idx]}, step=idx)
         idx += 1
 
+    # from mlflow.models.signature import infer_signature
+    # signature = infer_signature(x_train, xgb.predict(xgb.DMatrix(data=x_train, label=y_train)))
+    # mlflow.xgboost.log_model(xgb, "model") #, signature=signature)
 
     fig, ax = plt.subplots()
     sns.set(rc = {'figure.figsize':(12,9)})
-    sns.heatmap(confusion_matrix(y_test[ y_cols ], y_pred), annot=True, cmap="YlGnBu",fmt='d')
-    # plt.savefig("confusion_matrix")
-
+    cm = confusion_matrix(y_test[ y_cols ], y_pred)
+    sns.heatmap(cm, annot=True, cmap="YlGnBu",fmt='d')
     fig.savefig("ConfusionMatrix.png")
     mlflow.log_figure(fig, "ConfusionMatrix.png")
-    plt.show()
+    # plt.show()
 
-    fi = pd.DataFrame()
-    fi["cols"] = x_train.columns
-    fi["importance"] = xgb.feature_importances_
-    fi = fi.sort_values(by=['importance'])
-    f1.to_csv("feature_importance.csv", float_format='%.6f', index=False)
-    mlflow.log_artifact("feature_importance.csv")
-    #with open("feature_importance.txt", 'w') as f:
-    #    f.write(features)
+    cm_pct = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+    sns.heatmap(cm_pct, annot=True, cmap="YlGnBu", fmt=".3f")
+    fig.savefig("ConfusionMatrixPct.png")
+    mlflow.log_figure(fig, "ConfusionMatrixPct.png")
+    # plt.show()
+
+    # feature_importances = pd.DataFrame(xgb.feature_importances_,index=x_train.columns.tolist(),columns=['importance'])
+    # feature_importances.sort_values('importance', ascending=False)
+
 
 if __name__ == "__main__":
-    # mlflow.xgboost.autolog()
-
     #
     # Define Parameters
     #
@@ -174,12 +199,18 @@ if __name__ == "__main__":
     deltas = ['n5s_delta', 'n15s_delta', 'n30s_delta', 'n60s_delta']
 
     x_cols = [ ]
+    x_cols += theta_pos_w1 + theta_pos_w2  + theta_pos_w3  + deltas + theta_neg_w1 + theta_neg_w2 + theta_neg_w3
+#   x_cols += tv_pos_w1 + tv_pos_w2 + tv_pos_w3 + deltas + tv_neg_w1 + tv_neg_w2 + tv_neg_w3
+#   x_cols += ['c_w1_p2_theta', 'c_w1_p3_theta', 'c_w2_p2_theta', 'c_w2_p3_theta', 'c_w2_n2_time_value', 'c_w3_n2_time_value', 'c_w3_n3_time_value', 'n15s_delta', 'n30s_delta', 'n60s_delta']
 
-    x_cols += theta_pos_w1 + theta_pos_w2 + theta_pos_w3 + deltas + theta_neg_w1 + theta_neg_w2 + theta_neg_w3
-#    x_cols += tv_pos_w1 + tv_pos_w2 + tv_pos_w3 + deltas + tv_neg_w1 + tv_neg_w2 + tv_neg_w3
-
-#    x_cols += ['c_w1_p2_theta', 'c_w1_p3_theta', 'c_w2_p2_theta', 'c_w2_p3_theta', 'c_w2_n2_time_value', 'c_w3_n2_time_value', 'c_w3_n3_time_value', 'n15s_delta', 'n30s_delta', 'n60s_delta']
     y_cols = ['p30s_bucket']  # ,  'p5s_bucket', 'p30s_bucket', 'p60s_bucket']
+
+    if len(sys.argv) >= 2:
+        y_cols = sys.argv[1].replace("'", "").replace('"', "").split(",")
+
+    if len(sys.argv) >= 3:
+        x_cols = sys.argv[2].replace("'", "").replace('"', "").split(",")
+
     bin_counts = 2
 
     model_file_list = ['ml_cp18_AAPL20220103.csv', 'ml_cp18_AAPL20220104.csv', 'ml_cp18_AAPL20220106.csv', 'ml_cp18_AAPL20220107.csv', 'ml_cp18_AAPL20220110.csv', 'ml_cp18_AAPL20220111.csv', 'ml_cp18_AAPL20220112.csv']
@@ -211,7 +242,7 @@ if __name__ == "__main__":
             # 'num_class': bin_counts,
             # not too sure.
             'max_depth': 10,  # Maximum tree depth for base learners.
-            'early_stopping_rounds': 50,  # don't over fit
+            # 'early_stopping_rounds': 50,  # don't over fit
             'num_round': 100,  # num_boost_round == num_boost_round
             'use_label_encoder': False # UserWarning: The use of label encoder in XGBClassifier is deprecated...
         }
@@ -220,6 +251,7 @@ if __name__ == "__main__":
     #
 
     mlflow.set_experiment("xgb-binary-" + y_cols[0])
+    mlflow.xgboost.autolog()
 #    with mlflow.start_run() as run:
 #        run_model(scale_data=True)
 

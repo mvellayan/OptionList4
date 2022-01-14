@@ -12,9 +12,13 @@ share/man/man1/ipython.1.gz
 IBdata/
 data/
 ml_cp18/
+mlruns/
+2021/
+2022/
 
 #Do not commit data or logs
 *csv
+*png
 *zip
 *tar
 *xlsx
