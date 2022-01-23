@@ -29,27 +29,6 @@ plt.rc(
 )
 
 
-def plot_variance(pca, width=8, dpi=100):
-    # Create figure
-    fig, axs = plt.subplots(1, 2)
-    n = pca.n_components_
-    grid = np.arange(1, n + 1)
-    # Explained variance
-    evr = pca.explained_variance_ratio_
-    axs[0].bar(grid, evr)
-    axs[0].set(
-        xlabel="Component", title="% Explained Variance", ylim=(0.0, 1.0)
-    )
-    # Cumulative Variance
-    cv = np.cumsum(evr)
-    axs[1].plot(np.r_[0, grid], np.r_[0, cv], "o-")
-    axs[1].set(
-        xlabel="Component", title="% Cumulative Variance", ylim=(0.0, 1.0)
-    )
-    # Set up figure
-    fig.set(figwidth=8, dpi=100)
-    return axs
-
 def make_mi_scores(X, y, discrete_features):
     mi_scores = mutual_info_regression(X, y, discrete_features=discrete_features)
     mi_scores = pd.Series(mi_scores, name="MI Scores", index=X.columns)
@@ -86,7 +65,7 @@ def load_data(file_list, x_cols_names, y_cols_names, data_type="data"):
     y_features = data[y_cols].astype('int')
 
     mlflow.log_param(data_type + " size", msg)
-    return X_features, y_features
+    return X_features, y_features, data
 
 def run_model(scale_data=True):
     params["feature_names"] = x_cols
@@ -95,18 +74,18 @@ def run_model(scale_data=True):
     mlflow.log_param('X_cols', ', '.join(x_cols))
     mlflow.log_param('XGB Params', params)
     # Create XGB Model
-    x_train, y_train = load_data(model_file_list, x_cols, y_cols, data_type="Training")
+    x_train, y_train, train = load_data(model_file_list, x_cols, y_cols, data_type="Training")
 
     xgb = XGBClassifier(**params)
 
     # Load Test Data
-    x_test, y_test = load_data([test_file], x_cols, y_cols, data_type="Testing")
+    x_test, y_test, test = load_data([test_file], x_cols, y_cols, data_type="Testing")
     import matplotlib.image as mpimg
 
     fig, ax = plt.subplots()
     sns.set(rc={'figure.figsize': (12, 9)})
     # x_train.plot.hist(alpha=0.5)
-    x_train.hist()
+    # train.plot.hist(alpha=0.5, grid=False)
     plt.savefig("TrainingHistogram.png")
     #mlflow.log_figure(fig, "TrainingHistogram.png")
     mlflow.log_image(mpimg.imread("TrainingHistogram.png"), "TrainingHistogram.png")
@@ -143,15 +122,15 @@ def run_model(scale_data=True):
 
     accuracy = accuracy_score(y_test[ y_cols ], y_pred)
     print(f"accuracy: {accuracy:.3f}")
-    mlflow.log_metric('Accuracy', accuracy)
+    mlflow.log_metric('3-Accuracy', accuracy)
 
     # pd.options.display.float_format = '{:,.3f}'.format
 
     for idx in range(len(recall)):
-        mlflow.log_metrics({f'recall-{idx}': recall[idx],
-                            f'precision-{idx}': precision[idx],
-                            f'f1-{idx}': f1[idx],
-                            f'y_true-{idx}': y_true[idx]}, step=idx)
+        mlflow.log_metrics({f'2-recall-{idx}': recall[idx],
+                            f'0-precision-{idx}': precision[idx],
+                            f'1-f1-{idx}': f1[idx],
+                            f'4-y_true-{idx}': y_true[idx]}, step=idx)
         idx += 1
 
     # from mlflow.models.signature import infer_signature
@@ -251,9 +230,11 @@ if __name__ == "__main__":
     #
 
     mlflow.set_experiment("xgb-binary-" + y_cols[0])
+    mlflow.start_run()
     mlflow.xgboost.autolog()
 #    with mlflow.start_run() as run:
 #        run_model(scale_data=True)
 
-    with mlflow.start_run() as run:
-        run_model(scale_data=False)
+    run_model(scale_data=False)
+
+    mlflow.end_run()

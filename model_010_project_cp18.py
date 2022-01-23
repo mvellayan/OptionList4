@@ -35,7 +35,7 @@ running_missing = 0
 running_total = 0
 total_lookup = 0
 
-def expandX(quoteTime, conId, quoteLast):
+def expandX(quoteTime, quoteLast):
     global pdStockQuotes, pdOptionList, pdOptionList3wC, pdOptionQuotesIdx
     global running_total, running_missing, total_lookup, expiryList
     contractList = IBUtil.filter_option_list(expiryList, quoteLast, pdOptionList3wC, strikeBox=3)
@@ -46,14 +46,14 @@ def expandX(quoteTime, conId, quoteLast):
     retDict = {}
     index = 0
     retDict["time"] = quoteTime
-    quoteDateObj = FileUtil.getDateObjFromStr(quoteTime)
+    quoteTimeObj = FileUtil.getDateObjFromStr(quoteTime)
 
-    retDict["p0"] = FileUtil.get_value_with_delta(pdStockQuotes, quoteDateObj, 0)
+    retDict["p0"] = FileUtil.get_value_with_delta(pdStockQuotes, quoteTimeObj, 0)
 
     for ctr_delta_labels in range(len(delta_labels)):
         label = delta_labels[ctr_delta_labels]
         value = delta_values[ctr_delta_labels]
-        retDict[label] = FileUtil.get_value_with_delta(pdStockQuotes, quoteDateObj, value)
+        retDict[label] = FileUtil.get_value_with_delta(pdStockQuotes, quoteTimeObj, value)
         if retDict[label]:
             retDict[label + "_delta"] = (retDict[label] - retDict["p0"])
 
@@ -69,7 +69,7 @@ def expandX(quoteTime, conId, quoteLast):
             if running_missing % 5000 == 0:
                 print("\t", "missing=[", running_missing, round(running_missing/total_lookup, 4), "% ] total=[",
                       running_total, "/", total_lookup, round(running_total/total_lookup, 4), '% ]:',
-                      str(conId) + ":" + str(quoteTime), "Missing")
+                      str(quoteTime), "Missing")
         else:
             res = idx
             tv = None
@@ -207,7 +207,7 @@ def main(in_zip_file, out_dir, symbol: str):
     running_total = running_missing = 0
     total_lookup = len(pdStockQuotes) * 18
 
-    df = pdStockQuotes.apply(lambda x: expandX(x['time'], x['con_id'], x['last']), axis=1, result_type='expand')
+    df = pdStockQuotes.apply(lambda x: expandX(x['time'], x['last']), axis=1, result_type='expand')
     projection = pdStockQuotes.merge(df, on="time", how="outer")
     # for col in projection.columns: print(f"{ctr}: {col}")
 
