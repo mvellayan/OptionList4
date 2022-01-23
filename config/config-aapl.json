@@ -16,6 +16,10 @@
 
   "ml18" : {
     "data_dir" : "ml_cp18"
+  },
+
+  "ml_day" : {
+    "data_dir" : "ml_day"
   }
 
 }
