@@ -3,6 +3,7 @@
   "stockContractId" : 107113386,
   "weeksOut" : 3,
   "strikeBox": 5,
+  "right": "C",
 
   "tws": {
     "host" : "192.168.1.211",

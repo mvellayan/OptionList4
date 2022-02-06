@@ -143,7 +143,7 @@ def main():
         ctr += 1
 
         # Update contracts: Remove old contracts
-        new_contracts = IBUtil.get_filtered_contract_list(ib, config, (ctr % 15 == 0))
+        new_contracts = IBUtil.get_filtered_contract_list(ib, config, (config["right"] is "C") and (ctr % 15 == 0))
 
         found_changes = False
         for con in new_contracts:

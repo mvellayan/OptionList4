@@ -1,13 +1,13 @@
 {
-  "stock": "AAPL",
-  "stockContractId" : 265598,
+  "stock": "FB",
+  "stockContractId" : 107113386,
   "weeksOut" : 3,
   "strikeBox": 5,
-  "right": "C",
+  "right": "P",
 
   "tws": {
     "host" : "192.168.1.211",
-    "port" : 7496,
+    "port" : 7497,
     "quotes_flush_to_file_seconds" : 60
   },
 
