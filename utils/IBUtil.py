@@ -71,23 +71,29 @@ def get_filtered_contract_list(ib, config, quoteAmt: float = 0.0, force_pull=Fal
 
     # expiryList, quoteLast, optionList, strikeBox=3)
     expiryList = get_expiry_list(datetime.now(), config["weeksOut"], optionList)
-    retArray += filter_option_list(expiryList, quoteAmt, optionList, config["strikeBox"])
+    retArray += filter_option_list(expiryList, quoteAmt, optionList, config)
     return retArray
 
 
 filter_option_list_cache = {}
-def filter_option_list(expiryList, quoteAmt: float, df, strikeBox: int):
+def filter_option_list(expiryList, quoteAmt: float, df, config):
     global filter_option_list_cache
 
-    cache_value = filter_option_list_cache.get(quoteAmt, None)
+    right = config["right"]
+    if right is 'C':
+        cache_value = filter_option_list_cache.get(quoteAmt, None)
+    else:
+        cache_value = filter_option_list_cache.get(-1*quoteAmt, None)
+
     if cache_value is not None:
         return cache_value
 
+    strikeBox = config["strikeBox"]
     retArray = []
     df_res = None
 
     #Filter by type.  Calls only
-    df = df[df['right'] == 'C']
+    df = df[df['right'] == right]
     df['strikeDelta'] = df['strike'] - quoteAmt
     df['absStrikeDelta'] = abs(df['strikeDelta'])
 
@@ -120,7 +126,11 @@ def filter_option_list(expiryList, quoteAmt: float, df, strikeBox: int):
                                  df_res["expiry"][ind]))
     # p('\n Summary: Above Strike (', df_res.shape, ') \n')
 
-    filter_option_list_cache[quoteAmt] = retArray
+    if right is 'C':
+        filter_option_list_cache[quoteAmt] = retArray
+    else:
+        filter_option_list_cache[-1*quoteAmt] = retArray
+
     ## assert len(retArray) == 18, "should be tracking 18 options. =( " + str(len(retArray)) + ")"
     return retArray
 
@@ -171,12 +181,12 @@ def get_expiry_list(quoteTimeDate, noWeeks: int, pdOptionList):
     expiry = pdOptionList['expiry'].unique()
     expiry.sort()
     for dts in expiry:
-        #if dts >= (quoteTimeDate/1000000):
+        #if dts <= (quoteTimeDate/1000000): continue
         expiryListArr.append(dts)
-        if len(expiryListArr) >= 3:
+        if len(expiryListArr) >= noWeeks:
             break
 
-    assert len(expiryListArr) == 3
+    assert len(expiryListArr) == noWeeks
     # print(expiryListArr)
     #assert expiryListArr[0] >= (quoteTimeDate/1000000), "Expiry of option 0st >= quote date "
     assert expiryListArr[1] >= expiryListArr[0], "Expiry of option 1st >= expiry of option 0"

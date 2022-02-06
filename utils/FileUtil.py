@@ -113,7 +113,7 @@ def getDateObjFromStr(inTimeParam, in_format="YYYYMMDDHHMMSS"):
     elif isinstance(inTimeParam, str):
         inTime = inTimeParam
     else:
-        print(type(inTimeParam))
+        print(type(inTimeParam), inTimeParam)
         raise Exception("unknown inTimeparam! =(")
 
     if in_format == "YYYYMMDDHHMMSS":

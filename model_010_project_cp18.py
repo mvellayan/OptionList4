@@ -38,7 +38,7 @@ total_lookup = 0
 def expandX(quoteTime, quoteLast):
     global pdStockQuotes, pdOptionList, pdOptionList3wC, pdOptionQuotesIdx
     global running_total, running_missing, total_lookup, expiryList
-    contractList = IBUtil.filter_option_list(expiryList, quoteLast, pdOptionList3wC, strikeBox=3)
+    contractList = IBUtil.filter_option_list(expiryList, quoteLast, pdOptionList3wC, config)
     # pprint (list)
     listLabel = ["c_w1_n3", "c_w1_n2", "c_w1_n1", "c_w1_p1", "c_w1_p2", "c_w1_p3",
                  "c_w2_n3", "c_w2_n2", "c_w2_n1", "c_w2_p1", "c_w2_p2", "c_w2_p3",
