@@ -116,7 +116,7 @@ def main():
     writeThread = threading.Thread(target=writeQuotesToFile, args=(1,), daemon=True)
     writeThread.start()
 
-    log.info(f"Connecting to ip [{config['tws']['host']}] port[{config['tws']['port']}]")
+    log.info(f"Connecting to ip [{config['tws']['host']}] port[{config['tws']['port']}] for {config['stockContractId']} / {config['right']}")
     try:
         ib.connect(config['tws']['host'], config['tws']['port'], clientId=config['tws']['port'])
     except BaseException as err:
@@ -143,7 +143,7 @@ def main():
         ctr += 1
 
         # Update contracts: Remove old contracts
-        new_contracts = IBUtil.get_filtered_contract_list(ib, config, (config["right"] is "C") and (ctr % 15 == 0))
+        new_contracts = IBUtil.get_filtered_contract_list(ib, config, (config["right"] == "C") and (ctr % 15 == 0))
 
         found_changes = False
         for con in new_contracts:
