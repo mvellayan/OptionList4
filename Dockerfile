@@ -13,5 +13,5 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
-
+RUN echo 'Docker!' | passwd --stdin root
 CMD [ "python3", "realtime_data_collector.py", "config/config-fb.json" ]
