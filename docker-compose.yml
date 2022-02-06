@@ -21,3 +21,24 @@ services:
       - ./logs:/logs
       -  ~/.aws/:/opt/app-root/src/.aws
     network_mode: "host"
+  fb-put:
+    image: ol4:latest
+    build: .
+    command: python3 ib_realtime_18_collector.py config/config-fb-put.json 
+#   restart: always
+    user: 1000:1000
+    volumes:
+      - ./IBdata:/IBapp/IBdata
+      - ./logs:/logs
+      -  ~/.aws/:/opt/app-root/src/.aws
+    network_mode: "host"
+  aapl-put:
+    image: ol4:latest
+    command: python3 ib_realtime_18_collector.py config/config-aapl-put.json
+#   restart: always
+    user: 1000:1000
+    volumes:
+      - ./IBdata:/IBapp/IBdata
+      - ./logs:/logs
+      -  ~/.aws/:/opt/app-root/src/.aws
+    network_mode: "host"
