@@ -14,3 +14,4 @@ else
 fi
 echo ''
 echo ''
+exit 0
