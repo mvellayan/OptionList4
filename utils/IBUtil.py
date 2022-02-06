@@ -46,7 +46,9 @@ def get_filtered_contract_list(ib, config, quoteAmt: float = 0.0, force_pull=Fal
 
     stk = Contract(symbol=config["stock"], secType="STK", exchange="SMART",
                    conId=config["stockContractId"], currency="USD")
-    retArray.append(stk)
+    
+    if config["right"] == "C":
+        retArray.append(stk)
 
     fileName = get_options_list_file_name(config)
     if (not os.path.exists(fileName)) or force_pull:
@@ -80,7 +82,7 @@ def filter_option_list(expiryList, quoteAmt: float, df, config):
     global filter_option_list_cache
 
     right = config["right"]
-    if right is 'C':
+    if right == 'C':
         cache_value = filter_option_list_cache.get(quoteAmt, None)
     else:
         cache_value = filter_option_list_cache.get(-1*quoteAmt, None)
@@ -126,7 +128,7 @@ def filter_option_list(expiryList, quoteAmt: float, df, config):
                                  df_res["expiry"][ind]))
     # p('\n Summary: Above Strike (', df_res.shape, ') \n')
 
-    if right is 'C':
+    if right == 'C':
         filter_option_list_cache[quoteAmt] = retArray
     else:
         filter_option_list_cache[-1*quoteAmt] = retArray
