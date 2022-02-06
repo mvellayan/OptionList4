@@ -7,7 +7,7 @@
 
   "tws": {
     "host" : "192.168.1.211",
-    "port" : 7496,
+    "port" : 7498,
     "quotes_flush_to_file_seconds" : 60
   },
 
