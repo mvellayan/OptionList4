@@ -5,6 +5,7 @@
 bin/
 pyvenv.cfg
 clientportal.gw/
+include/
 
 #ipython
 share/man/man1/ipython.1.gz
