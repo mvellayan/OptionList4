@@ -98,6 +98,11 @@ def get_value_with_delta(stockQuotes, quoteTime: datetime, delta: int, colAsk='l
 
     return None
 
+def dateAddInt(inDate: np.int64, minutes: int = 0, seconds: int = 0):
+    inDateDate = getDateObjFromStr(inDate)
+    outTime = inDateDate + timedelta(minutes=minutes, seconds=seconds)
+    return np.int64(outTime.strftime("%Y%m%d%H%M%S"))
+
 
 def dateAdd(inDate: datetime, minutes: int = 0, seconds: int = 0):
     inDate = inDate + timedelta(minutes=minutes, seconds=seconds)

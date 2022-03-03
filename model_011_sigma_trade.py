@@ -15,7 +15,6 @@ from datetime import timedelta
 from utils import FileUtil, IBUtil
 from utils.FileUtil import makeDirectory, unzip_file, get_sec_to_expire, getDateStrFromPath
 
-#logging.basicConfig(level=logging.ERROR)
 logging.basicConfig(
     format='%(asctime)s %(levelname)-8s %(message)s',
     level=logging.INFO,
@@ -58,7 +57,7 @@ def loadBasicData(in_zip_file, symbol):
     #
     # No files in the directory
     if pdStockQuotes is None:
-        log.error("No files in the directory?? " + startingDir + "/sq_" + symbol + "_" + "*csv")
+        log.error("ERROR L60: No files in the directory?? " + startingDir + "/sq_" + symbol + "_" + "*csv")
         return False
     else:
         log.info(f"Loaded stock_quote {pdStockQuotes.shape}")
@@ -118,7 +117,7 @@ def loadBasicData(in_zip_file, symbol):
 
     # No files in the directory
     if len(optionQuotesDict) == 0:
-        log.error("No complete option quote files in the directory?? " + startingDir + "/oq_" + symbol + "_" + "*csv")
+        log.error("ERROR L120: No complete option quote files in the directory?? " + startingDir + "/oq_" + symbol + "_" + "*csv")
         return False
     else:
         log.info(f"Loaded options [{len(optionQuotesDict)}] option quote: [{row_count}] file added {file_added} dropped {file_dropped} total {file_dropped+ file_added}")
@@ -129,7 +128,7 @@ def loadBasicData(in_zip_file, symbol):
         try:
             shutil.rmtree(startingDir)
         except OSError as e:
-            print("Error: %s : %s" % (startingDir, e.strerror))
+            print("Error L131: %s : %s" % (startingDir, e.strerror))
     else:
         raise Exception("Unexpected createdTempDir == False.  Hmm")
 
@@ -225,7 +224,7 @@ def main(in_zip_file, out_dir, config):
     outfile = out_dir + "sigma_security_" + config["stock"] + getDateStrFromPath(in_zip_file) + ".csv"
     log.info(f"Processing {in_zip_file} => {outfile}")
     if os.path.exists(outfile):
-        log.error(f"\nAssessment File Exist, skipping directory: {outfile}")
+        log.warning(f"Assessment File Exist, skipping directory: {outfile}")
         return
 
 
@@ -236,7 +235,7 @@ def main(in_zip_file, out_dir, config):
     FileUtil.reset_quote_cache()
 
     if not loadBasicData(in_zip_file, config["stock"]):
-        log.error("Cant find data in this dir: " + in_zip_file)
+        log.error("ERROR L238: Cant find data in this dir: " + in_zip_file)
         return
 
     # get_decision(optQuotePd, time, col_name, col_value, discard_two_pct=True):
@@ -264,7 +263,7 @@ def main(in_zip_file, out_dir, config):
                     transPd = transPd.append(ins_obj, ignore_index=True)
                 except Exception as e:
                     print(ins_obj)
-                    print("error:", e)
+                    print("ERROR L266:", e)
             elif (buy_sell in ["", 'sell']) or ("NotEnoughData" in buy_sell):
                 continue
             else:

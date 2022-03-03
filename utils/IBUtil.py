@@ -183,7 +183,7 @@ def get_expiry_list(quoteTimeDate, noWeeks: int, pdOptionList):
     expiry = pdOptionList['expiry'].unique()
     expiry.sort()
     for dts in expiry:
-        #if dts <= (quoteTimeDate/1000000): continue
+        if dts < (quoteTimeDate//1000000): continue
         expiryListArr.append(dts)
         if len(expiryListArr) >= noWeeks:
             break
@@ -192,7 +192,7 @@ def get_expiry_list(quoteTimeDate, noWeeks: int, pdOptionList):
     # print(expiryListArr)
     #assert expiryListArr[0] >= (quoteTimeDate/1000000), "Expiry of option 0st >= quote date "
     assert expiryListArr[1] >= expiryListArr[0], "Expiry of option 1st >= expiry of option 0"
-    assert expiryListArr[2] >= expiryListArr[1], "Expiry of option 2st >= expiry of option 1"
+    #assert expiryListArr[2] >= expiryListArr[1], "Expiry of option 2st >= expiry of option 1"
     return expiryListArr
 
 

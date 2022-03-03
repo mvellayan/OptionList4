@@ -175,7 +175,7 @@ def main():
 if __name__ == "__main__":
     config = FileUtil.readConfig(sys.argv[1])
 
-    logging.basicConfig(level=logging.ERROR)
+    logging.basicConfig(level=logging.WARNING)
     log = logging.getLogger('myLogger')
     log.setLevel(logging.INFO)
 
