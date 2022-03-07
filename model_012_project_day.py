@@ -66,55 +66,13 @@ def getComputedComponents(quoteTime, stockQuote, optionQuote, strike, expiry):
         if iv < 0:
             iv = 0
         tv = optionQuote - iv
-        dur = get_sec_to_expire(
-            FileUtil.getDateObjFromStr(quoteTime), FileUtil.getDateObjFromStr(expiry, 'YYYYMMDD'))
+        dur = get_sec_to_expire(FileUtil.getDateObjFromStr(quoteTime), FileUtil.getDateObjFromStr(expiry, 'YYYYMMDD'))
         if dur == 0 or tv == 0:
             theta = 0
         else:
             theta = (tv / dur) * 100 * 1000  # 100 = cents, 100 = basis point
     return round(tv,3), round(iv,3), round(theta,5)
 
-def expandX(quoteTime, quoteLast):
-    global pdStockQuotes, pdOptionList, pdOptionList_wData, pdOptionQuotes_by_timeContractNo, pdOptionQuotes_by_ContractNoTime
-
-    quoteTimeObj = FileUtil.getDateObjFromStr(quoteTime)
-    # pprint (list)
-
-    retDict = {}
-    retDict["time"] = quoteTime
-
-    # retDict["p0"] = FileUtil.get_value_with_delta(pdStockQuotes, quoteTimeObj, 0)
-    sorted_ol = pdOptionList_wData.sort_values(by=['expiry', 'strike'], ascending=True)
-    for index, contract in sorted_ol.iterrows():
-        # print(row['c1'], row['c2'])
-
-
-        idx = pdOptionQuotes_by_timeContractNo.get(str(contract.con_id) + ":" + str(quoteTime))
-
-        if idx is not None:
-
-            col_prefix = str(f"C_{(contract.expiry % 1000):04d}_{contract.strike}")
-
-            retDict[col_prefix + "_symbol"] = idx["symbol"]
-        #    retDict[col_prefix + "_bid_ask_delta"] = idx["bid"] - idx["ask"]
-            retDict[col_prefix + "_ask"] = idx["ask"]
-        #    retDict[col_prefix + "_ask_size"] = idx["ask_size"]
-            retDict[col_prefix + "_bid"] = idx["bid"]
-        #    retDict[col_prefix + "_bid_size"] = idx["bid_size"]
-        #    retDict[col_prefix + "_last"] = idx["last"]
-        #    retDict[col_prefix + "_last_size"] = idx["last_size"]
-            retDict[col_prefix + "_strike"] = contract.strike
-            retDict[col_prefix + "_strike_delta"] = quoteLast - contract.strike
-
-            tv, iv, theta = getComputedComponents(quoteTime, quoteLast, (idx["bid"]+idx["ask"])/2, contract.strike, contract.expiry)
-            retDict[col_prefix + "_tv"] = tv
-            retDict[col_prefix + "_iv"] = iv
-            retDict[col_prefix + "_theta"] = theta
-
-        #    retDict[col_prefix + "_" + "implied_volatility"] = idx["implied_volatility"]
-        #    retDict[label] = FileUtil.get_value_with_delta(pdStockQuotes, quoteTimeObj, value)
-
-    return retDict
 
 def loadBasicData(in_zip_file, symbol):
     global pdStockQuotes, pdOptionList, pdOptionList_wData, pdOptionQuotes_by_timeContractNo, pdOptionQuotes_by_ContractNoTime
@@ -193,24 +151,27 @@ def loadBasicData(in_zip_file, symbol):
     return True
 
 
-def bucket_it2(column_value: float, dividing_value: float):
-    if pd.isna(column_value): return np.NaN
-    if column_value <= dividing_value:
-        return 0  + ( np.sign(dividing_value) * 2)
-    else:
-        return 1 + ( np.sign(dividing_value) * 2)
-
-def flush_row(rows, outfile, write_mode="a"):
+last_index = 0
+def flush_row(rows, outfile, write_mode="a", flush_all=False):
+    global last_index
     with open(outfile, write_mode) as csvfile:
         csvwriter = csv.writer(csvfile)
-        for row in rows:
-            csvwriter.writerow(row)
-    rows.clear()
+        if flush_all:
+            for row in rows:
+                csvwriter.writerow(row)
+        else:
+            new_index = len(rows)
+            for idx in range(last_index, new_index):
+                csvwriter.writerow(rows[idx])
+            last_index = new_index
+
+    # rows.clear()
 
 def main(in_zip_files, out_dir, symbol: str):
     global pdStockQuotes, pdOptionList, pdOptionQuotes_by_timeContractNo, pdOptionQuotes_by_ContractNoTime, projection, df, pdOptionList_wData
 
-    outfile = out_dir + "ml_iteration_" + symbol + getDateStrFromPath(in_zip_files[0]) + ".csv"
+    #outfile = out_dir + "ml_iteration_" + symbol + getDateStrFromPath(in_zip_files[0]) + ".csv"
+    outfile = out_dir + "run_" + datetime.now().strftime('%m%d%H%M%S') + getDateStrFromPath(in_zip_files[0]) + ".csv"
     log.info(f"Processing {in_zip_files[0]} => {outfile}")
     if os.path.exists(outfile):
         print(f"\tAssessment File Exist, skipping directory: {outfile}")
@@ -233,10 +194,11 @@ def main(in_zip_files, out_dir, symbol: str):
     pdStocks = pdStockQuotes.sort_values(by=['time'])
     npStocks = pdStocks.to_numpy()
 
-    fields = [["ctr", "Sold", "open_date", "open_time", "open_stock_ask", "open_option_bid", "strike", "expiry", "open_tv",
-              "open_iv", "open_theta", "close_date", "close_time", "close_sock_bid", "close_option_ask", "close_tv", "cloe_iv",
-              "close_theta", "net_stock", "net_option", "net", "dur-days"]]
-    flush_row(fields, outfile, write_mode="w")
+    fields = ["ctr", "sold", "o_date", "o_time", "o_stock_ask", "o_option_bid",
+               "strike", "expiry", "o_tv", "o_iv", "o_theta", "o_dr",
+               "c_date", "c_time", "c_sock_bid", "c_option_ask", "c_tv", "c_iv", "c_theta", "c_dr",
+               "net_option", "net_stock", "net", "dur-days"]
+    flush_row(fields, outfile, write_mode="w", flush_all=True)
     print('\t'.join([x for x in fields]))
 
     maxStockIndex = len(pdStocks)
@@ -254,7 +216,11 @@ def main(in_zip_files, out_dir, symbol: str):
             if open_option is None: continue
             # print(open_option)
             open_tv, open_iv, open_theta = getComputedComponents(open_stock.time, open_stock.ask, open_option.bid, optionDef.strike, optionDef.expiry)
-            if (open_tv > 2.3) and (open_theta > 1) and (optionDef.strike+1) > open_stock.ask:  # Values from week 2 average!
+            #
+            # Open Position
+            #
+            #if (open_tv > 2.3) and (open_theta > 1) and (optionDef.strike-1) > open_stock.ask:
+            if  (open_tv > 2.3) and (open_theta > 1) and (optionDef.strike+1) < open_stock.ask:
                 # print(f"{open_stock.time}\t{open_stock.ask}\t{open_option.bid}\t{optionDef.strike}\t{optionDef.expiry}\t{open_tv:.3f}\t{open_iv:.3f}\t{open_theta:.3f}")
                 # start_close_time = dateAddInt(open_stock.time, seconds=300)
                 # close_stockPd = pdStocks.loc [pdStocks['time'] >= start_close_time]
@@ -271,32 +237,55 @@ def main(in_zip_files, out_dir, symbol: str):
                                                                          close_option.ask, optionDef.strike, optionDef.expiry)
                     net_stock = close_stock.bid - open_stock.ask
                     net_option = open_option.bid - close_option.ask
+                    if optionDef.expiry * 1000000 + 155000 < close_stock.time:
+                        row = [ctr, 'expired', open_stock.time // 1000000, open_stock.time % 1000000,
+                               open_stock.ask, open_option.bid,
+                               optionDef.strike, optionDef.expiry, open_tv, open_iv, open_theta,
+                               FileUtil.days_between(optionDef.expiry, open_stock.time),
+                               close_stock.time // 1000000, close_stock.time % 1000000, close_stock.bid,
+                               close_option.ask,
+                               tv_sell, iv_sell, theta_sell, FileUtil.days_between(optionDef.expiry, close_stock.time),
+                               net_option, net_stock, round(net_stock + net_option, 1),
+                               FileUtil.days_between(close_stock.time, open_stock.time)
+                               ]
+                        rows.append(row)
+                        sold = True
+                        break
+
                     if tv_sell < 1 and (net_stock + net_option > 0):
-                        row=[ctr, 'sold', open_stock.time // 1000000, open_stock.time % 1000000, open_stock.ask, open_option.bid,
-                            optionDef.strike, optionDef.expiry, open_tv, open_iv, open_theta,
-                            close_stock.time // 1000000, close_stock.time % 1000000, close_stock.bid, close_option.ask, tv_sell, iv_sell,
-                            theta_sell, net_stock, net_option, net_stock + net_option,
-                            (close_stock.time // 1000000 - open_stock.time // 1000000)]
+                        row=[ctr, 'sold', open_stock.time // 1000000, open_stock.time % 1000000,
+                             open_stock.ask, open_option.bid,
+                             optionDef.strike, optionDef.expiry, open_tv, open_iv, open_theta,
+                             FileUtil.days_between(optionDef.expiry, open_stock.time),
+                             close_stock.time // 1000000, close_stock.time % 1000000, close_stock.bid, close_option.ask,
+                             tv_sell, iv_sell, theta_sell, FileUtil.days_between(optionDef.expiry, close_stock.time),
+                             net_option, net_stock, round(net_stock + net_option,1),
+                             FileUtil.days_between(close_stock.time, open_stock.time)
+                             ]
                         rows.append(row)
                         sold = True
                         break
 
                 if not sold:
                     if close_option is None:
-                        row = [ctr, 'Not Sold1', open_stock.time // 1000000, open_stock.time % 1000000,
-                            open_stock.ask, open_option.bid,
-                           optionDef.strike, optionDef.expiry, open_tv, open_iv, open_theta,
-                           close_stock.time // 1000000, close_stock.time % 1000000, close_stock.bid,
-                               0, 0, 0, 0,
-                               close_stock.bid - open_stock.ask, open_option.bid, close_stock.bid - open_stock.ask + open_option.bid,
-                           (close_stock.time // 1000000 - open_stock.time // 1000000)]
+                        row = [ctr, 'not sold1', open_stock.time // 1000000, open_stock.time % 1000000,
+                               open_stock.ask, open_option.bid,
+                               optionDef.strike, optionDef.expiry,open_tv, open_iv, open_theta,
+                               FileUtil.days_between(optionDef.expiry, open_stock.time),
+                               close_stock.time // 1000000, close_stock.time % 1000000, close_stock.bid, 0,
+                               0, 0, 0, FileUtil.days_between(optionDef.expiry, close_stock.time),
+                               open_option.bid, close_stock.bid - open_stock.ask,
+                               round(close_stock.bid - open_stock.ask + open_option.bid,1),
+                               FileUtil.days_between(close_stock.time, open_stock.time)]
                     else:
-                        row = [ctr, 'Not Sold2', open_stock.time // 1000000, open_stock.time % 1000000,  open_stock.ask, open_option.bid,
-                           optionDef.strike, optionDef.expiry, open_tv, open_iv, open_theta,
-                           close_stock.time // 1000000, close_stock.time % 1000000,  close_stock.bid,
-                                close_option.ask, tv_sell, iv_sell, theta_sell,
-                               net_stock, net_option, net_stock + net_option,
-                           (close_stock.time // 1000000 - open_stock.time // 1000000)]
+                        row = [ctr, 'no data', open_stock.time // 1000000, open_stock.time % 1000000,
+                               open_stock.ask, open_option.bid,
+                               optionDef.strike, optionDef.expiry, open_tv, open_iv, open_theta,
+                               FileUtil.days_between(optionDef.expiry, open_stock.time),
+                               close_stock.time // 1000000, close_stock.time % 1000000, close_stock.bid, close_option.ask,
+                               tv_sell, iv_sell, theta_sell, FileUtil.days_between(optionDef.expiry, close_stock.time),
+                               net_option, net_stock, round(net_stock + net_option, 1),
+                               FileUtil.days_between(close_stock.time, open_stock.time)]
                     rows.append(row)
 
                 if ctr % 100 == 0: flush_row(rows, outfile)
@@ -305,6 +294,25 @@ def main(in_zip_files, out_dir, symbol: str):
     print(f"max seen ctr = {ctr}")
     print("last stock", open_stock)
     flush_row(rows, outfile)
+    print("\n\n############################################################################")
+    print("final results\n")
+    res = pd.DataFrame(rows, columns=fields)
+
+    statuses = ['sold', 'expired', 'not sold1', 'no data']
+    for status in statuses:
+        summaryPD = res.loc[res['sold'] == status]
+        summaryStat = summaryPD.groupby('net').agg({
+            'o_theta': ['count', 'mean'], 'c_theta': ['mean'],
+            'o_tv': ['mean'], 'c_tv': ['mean'],
+            'o_iv': ['mean'], 'c_iv': ['mean'],
+            'o_dr': ['mean', 'std'], 'c_dr': ['mean'],
+            'net_option': ['mean'], 'net_stock': ['mean'],
+            'dur-days': ['mean'], 'net': ['mean', 'sum']
+            })
+        m = "a"
+        if status == "sold": m = "w"
+        summaryStat.to_csv(outfile.replace(".csv", '_summary.csv'), mode=m)
+
 
     #df = pdStockQuotes.apply(lambda x: expandX(x['time'], x['last']), axis=1, result_type='expand')
     #print(f'\tExpansion Complete: {(time.time() - startTime):.2f}')
@@ -353,7 +361,7 @@ if __name__ == "__main__":
         print (index, zip_file)
         if zip_file[-16:] in ['AAPL20220106.zip']:
             startTime = time.time()
-            main(file_list[index: index+21], out_dir_m, symbol_m)
+            main(file_list[index: index+31], out_dir_m, symbol_m)
             print(f'TIME Main: {(time.time() - startTime):.2f}')
             break
 

@@ -109,6 +109,7 @@ def dateAdd(inDate: datetime, minutes: int = 0, seconds: int = 0):
     return getStrFromDate(inDate, "YYYYMMDDHHMMSS")
 
 
+localDateCash = {}
 def getDateObjFromStr(inTimeParam, in_format="YYYYMMDDHHMMSS"):
     inTime: str = ""
     if type(inTimeParam) == np.int64 or \
@@ -122,12 +123,18 @@ def getDateObjFromStr(inTimeParam, in_format="YYYYMMDDHHMMSS"):
         raise Exception("unknown inTimeparam! =(")
 
     if in_format == "YYYYMMDDHHMMSS":
-        return datetime(int(inTime[0:4]), int(inTime[4:6]),
-                    int(inTime[6:8]), int(inTime[8:10]),
-                    int(inTime[10:12]), int(inTime[12:14]))
+        return datetime.strptime(inTime, "%Y%m%d%H%M%S")
+        #return datetime(int(inTime[0:4]), int(inTime[4:6]),
+        #            int(inTime[6:8]), int(inTime[8:10]),
+        #            int(inTime[10:12]), int(inTime[12:14]))
     if in_format == "YYYYMMDD":
-        return datetime(int(inTime[0:4]), int(inTime[4:6]),
-                    int(inTime[6:8]))
+        rValue = localDateCash.get(inTime[0:8], None)
+        if rValue is None:
+            rValue = datetime.strptime(inTime[0:8], "%Y%m%d")
+            localDateCash[inTime[0:8]] = rValue
+        return rValue
+        #return datetime(int(inTime[0:4]), int(inTime[4:6]),
+        #            int(inTime[6:8]))
     log.error("Unexpected in format: ", in_format)
 
     assert False
@@ -145,6 +152,12 @@ def getStrFromDate(inTime: datetime, in_format: str="YYYYMMDDHHMMSS"):
         assert False
 
     return returnValue
+
+
+def days_between(d1, d2):
+    d1 = datetime.strptime(str(d1)[0:8], "%Y%m%d")
+    d2 = datetime.strptime(str(d2)[0:8], "%Y%m%d")
+    return (d2 - d1).days
 
 
 # Example call
@@ -254,6 +267,7 @@ def get_sec_to_4pm(in_date: datetime):
 
 def get_sec_to_expire(in_start_date: datetime, in_end_date: datetime):
     sec1 = get_sec_to_4pm(in_start_date)
+
     start_date_str = getStrFromDate(in_start_date, 'YYYY-MM-DD')
     in_end_date += timedelta(days=1)
     end_date_str = getStrFromDate(in_end_date, 'YYYY-MM-DD')
@@ -262,6 +276,7 @@ def get_sec_to_expire(in_start_date: datetime, in_end_date: datetime):
     else:
         days = np.busday_count(start_date_str,  end_date_str)
         return sec1 + (days-1) * (60 * 390)
+
 
 def unit_test():
     # Test get_sec_to_4_pm
