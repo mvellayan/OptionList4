@@ -50,21 +50,7 @@ class StockQuote:
 
 
 def getComputedComponents(quoteTime, stockQuote, optionQuote, strike, expiry):
-    """
-    with quote & strike we compute tv & iv
-    with quoteTime & expiry, compute theta
-    :param quoteTime:
-    :param quote:
-    :param strike:
-    :param expiry:
-    :return:
-        tv - time value.  can be pos or neg
-        iv - intrinsic value. must be >= 0
-    """
-    tv = None
-    iv = None
-    theta = None
-
+    theta = iv = tv = None
     if stockQuote > 0:
         iv = stockQuote - strike
         if iv < 0:
@@ -118,10 +104,6 @@ def loadBasicData(in_zip_file, symbol):
             pdOptionList = pdOptionList.append(ol, ignore_index=True)
     pdOptionList.drop_duplicates(inplace=True, subset=['con_id'])
 
-    # 3.b load pdOptionList3wC
-    # filtering now for performance improvement.
-    # pdOptionList3_wData = pdOptionList # Need to filter out options without data
-
     # 4. Load pdOptionQuotesIdx -- Options Quotes
     for file in glob.glob(startingDir + "/oq_" + symbol + "*C*csv"):
         curPd = pd.read_csv(file)
@@ -161,6 +143,8 @@ last_index = 0
 def flush_row(rows, outfile, write_mode="a", flush_all=False):
     global last_index
     with open(outfile, write_mode) as csvfile:
+        if write_mode == "w":
+            csvfile.write(ml_model.model_logic.get_description(model_no) + "\n")
         csvwriter = csv.writer(csvfile)
         if flush_all:
             for row in rows:
@@ -177,11 +161,9 @@ def main(model_no, in_zip_files, out_dir, symbol: str):
     global pdStockQuotes, pdOptionList, pdOptionQuotes_by_timeContractNo, projection, df, pdOptionList_wData
 
     #outfile = out_dir + "ml_iteration_" + symbol + getDateStrFromPath(in_zip_files[0]) + ".csv"
-    outfile = out_dir + "run_" + datetime.now().strftime('%m%d%H%M%S') + ".csv"
+    outfile = out_dir + "run_" + str(model_no) + "_" + ml_model.model_logic.get_short_title(model_no) \
+              + "_" + datetime.now().strftime('%m%d%H%M%S') + ".csv"
     log.info(f"Processing {in_zip_files[0]} => {outfile}")
-    if os.path.exists(outfile):
-        print(f"\tAssessment File Exist, skipping directory: {outfile}")
-        # return
 
     pdOptionList = None  # Data Frame all options Contracts for the symbol
     pdOptionList_wData = None  # 3 week calls only
@@ -209,10 +191,12 @@ def main(model_no, in_zip_files, out_dir, symbol: str):
 
     maxStockIndex = len(pdStocks)
     ctr = 0
+    rnd = random.randint(20, 40)
     rows = []
     for open_stock in pdStocks.itertuples():
         ctr += 1
-        if ctr % random.randint(30,90) != 0: continue  # analyze one per (average) minute.  too much data.
+        if ctr % rnd != 0: continue  # analyze one per (average) minute.  too much data.
+        rnd = random.randint(20, 40)
         expiries = get_expiry_list(open_stock.time, noWeeks=2, pdOptionList=pdOptionList_wData)
         pdOptions = pdOptionList_wData.loc[pdOptionList_wData['expiry'].isin(expiries)]
         for optionDef in pdOptions.itertuples():
@@ -296,7 +280,7 @@ def main(model_no, in_zip_files, out_dir, symbol: str):
 
                 if ctr % 100 == 0:
                     flush_row(rows, outfile)
-                log.info('\t'.join([str(x) for x in row]))
+                    log.info('\t'.join([str(x) for x in row]))
 
     print(f"max seen ctr = {ctr}")
     print("last stock", open_stock)
@@ -319,16 +303,18 @@ def main(model_no, in_zip_files, out_dir, symbol: str):
         summaryStat.index.name = status
         print(df)
 
-        m = "a"
         summary_outfile = outfile.replace(".csv", '_summary.csv')
-        if status == "sold": m = "w"
-        summaryStat.to_csv(summary_outfile, mode=m)
+        if status == "sold":
+            with open(summary_outfile, "w") as csvfile:
+                csvfile.write("#" + ml_model.model_logic.get_description(model_no) + "\n")
+        summaryStat.to_csv(summary_outfile, mode="a")
 
 
 if __name__ == "__main__":
 
     config = {}  # parameter config object
     pd.set_option('display.max_columns', None)
+    model_no = int(sys.argv[2])
     config = FileUtil.readConfig(sys.argv[1])
     symbol_m = config["stock"]
 
@@ -353,7 +339,7 @@ if __name__ == "__main__":
         print (index, zip_file)
         if zip_file[-16:] in ['AAPL20220111.zip']:
             startTime = time.time()
-            main(int(sys.argv[2]),  file_list[index: index+26], out_dir_m, symbol_m)
+            main(model_no,  file_list[index: index+26], out_dir_m, symbol_m)
             print(f'TIME Main: {(time.time() - startTime):.2f}')
             break
 

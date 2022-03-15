@@ -1,7 +1,6 @@
-import argparse
+import random
 import time
 import logging
-import math
 import shutil
 from datetime import datetime, timedelta, date
 import glob, sys, os
@@ -30,18 +29,18 @@ pdOptionQuotes_by_ContractNoTime = {}
 
 class StockQuote:
     def __init__(self, en: np.ndarray):
-        self.con_id = en[0]
-        self.symbol = en[1]
+        # self.con_id = en[0]
+        # self.symbol = en[1]
         self.time = en[2]
         self.bid = en[3]
-        self.bid_size = en[4]
+        # self.bid_size = en[4]
         self.ask = en[5]
-        self.ask_size = en[6]
-        self.last = en[7]
-        self.last_size = en[8]
-        self.volume = en[9]
-        self.hist_volatility = en[10]
-        self.implied_volatility = en[11]
+        # self.ask_size = en[6]
+        # self.last = en[7]
+        # self.last_size = en[8]
+        # self.volume = en[9]
+        # self.hist_volatility = en[10]
+        # self.implied_volatility = en[11]
 
 
 
@@ -71,7 +70,7 @@ def getComputedComponents(quoteTime, stockQuote, optionQuote, strike, expiry):
             theta = 0
         else:
             theta = (tv / dur) * 100 * 1000  # 100 = cents, 100 = basis point
-    return round(tv,3), round(iv,3), round(theta,5)
+    return tv, iv, theta
 
 
 def loadBasicData(in_zip_file, symbol):
@@ -171,7 +170,7 @@ def main(in_zip_files, out_dir, symbol: str):
     global pdStockQuotes, pdOptionList, pdOptionQuotes_by_timeContractNo, pdOptionQuotes_by_ContractNoTime, projection, df, pdOptionList_wData
 
     #outfile = out_dir + "ml_iteration_" + symbol + getDateStrFromPath(in_zip_files[0]) + ".csv"
-    outfile = out_dir + "run_" + datetime.now().strftime('%m%d%H%M%S') + getDateStrFromPath(in_zip_files[0]) + ".csv"
+    outfile = out_dir + "run_" + datetime.now().strftime('%m%d%H%M%S') + ".csv"
     log.info(f"Processing {in_zip_files[0]} => {outfile}")
     if os.path.exists(outfile):
         print(f"\tAssessment File Exist, skipping directory: {outfile}")
@@ -194,11 +193,11 @@ def main(in_zip_files, out_dir, symbol: str):
     pdStocks = pdStockQuotes.sort_values(by=['time'])
     npStocks = pdStocks.to_numpy()
 
-    fields = ["ctr", "sold", "o_date", "o_time", "o_stock_ask", "o_option_bid",
+    fields = ["sold", "o_date", "o_time", "o_stock_ask", "o_option_bid",
                "strike", "expiry", "o_tv", "o_iv", "o_theta", "o_dr",
                "c_date", "c_time", "c_sock_bid", "c_option_ask", "c_tv", "c_iv", "c_theta", "c_dr",
                "net_option", "net_stock", "net", "dur-days"]
-    flush_row(fields, outfile, write_mode="w", flush_all=True)
+    flush_row([ fields ], outfile, write_mode="w", flush_all=True)
     print('\t'.join([x for x in fields]))
 
     maxStockIndex = len(pdStocks)
@@ -206,7 +205,7 @@ def main(in_zip_files, out_dir, symbol: str):
     rows = []
     for open_stock in pdStocks.itertuples():
         ctr += 1
-        if ctr % 50 != 0: continue
+        if ctr % 3 != 0: continue  # skip 2 out of 3
         expiries = get_expiry_list(open_stock.time, noWeeks=2, pdOptionList=pdOptionList_wData)
         pdOptions = pdOptionList_wData.loc[pdOptionList_wData['expiry'].isin(expiries)]
         for optionDef in pdOptions.itertuples():
@@ -219,7 +218,7 @@ def main(in_zip_files, out_dir, symbol: str):
             #
             # Open Position
             #
-            #if (open_tv > 2.3) and (open_theta > 1) and (optionDef.strike-1) > open_stock.ask:
+            # if (open_tv > 2.3) and (open_theta > 1) and (optionDef.strike-1) > open_stock.ask:
             if  (open_tv > 2.3) and (open_theta > 1) and (optionDef.strike+1) < open_stock.ask:
                 # print(f"{open_stock.time}\t{open_stock.ask}\t{open_option.bid}\t{optionDef.strike}\t{optionDef.expiry}\t{open_tv:.3f}\t{open_iv:.3f}\t{open_theta:.3f}")
                 # start_close_time = dateAddInt(open_stock.time, seconds=300)
@@ -227,39 +226,43 @@ def main(in_zip_files, out_dir, symbol: str):
                 sold = False
                 ctr = 0
                 # for close_stock in close_stockPd.itertuples():
-                for idx in range (open_stock.Index + 300, maxStockIndex, 10):
+                for idx in range (open_stock.Index + 300, maxStockIndex, random.randint(10, 20)):
                     close_stock = StockQuote(npStocks[idx])
                     ctr += 1
                     close_option = pdOptionQuotes_by_timeContractNo.get(str(close_stock.time) + ":" + str(optionDef.con_id), None)
-                    if close_option is None: continue
-                    if close_option.ask < 0 or close_option.bid < 0: continue
-                    tv_sell, iv_sell, theta_sell = getComputedComponents(close_stock.time, close_stock.bid,
-                                                                         close_option.ask, optionDef.strike, optionDef.expiry)
-                    net_stock = close_stock.bid - open_stock.ask
-                    net_option = open_option.bid - close_option.ask
-                    if optionDef.expiry * 1000000 + 155000 < close_stock.time:
-                        row = [ctr, 'expired', open_stock.time // 1000000, open_stock.time % 1000000,
+                    net_stock = min(close_stock.bid,optionDef.strike) - open_stock.ask
+                    oexp: int = optionDef.expiry * 1000000 + 150000
+                    if optionDef.expiry == '20220121': oexp = optionDef.expiry * 1000000 + 110000
+
+                    if oexp < close_stock.time:
+                        row = ['expired', open_stock.time // 1000000, open_stock.time % 1000000,
                                open_stock.ask, open_option.bid,
                                optionDef.strike, optionDef.expiry, open_tv, open_iv, open_theta,
                                FileUtil.days_between(optionDef.expiry, open_stock.time),
                                close_stock.time // 1000000, close_stock.time % 1000000, close_stock.bid,
-                               close_option.ask,
-                               tv_sell, iv_sell, theta_sell, FileUtil.days_between(optionDef.expiry, close_stock.time),
-                               net_option, net_stock, round(net_stock + net_option, 1),
+                               0, 0, 0, 0, FileUtil.days_between(optionDef.expiry, close_stock.time),
+                               round(open_option.bid, 2), round(net_stock, 2), round(net_stock + open_option.bid, 1),
                                FileUtil.days_between(close_stock.time, open_stock.time)
                                ]
                         rows.append(row)
                         sold = True
                         break
 
-                    if tv_sell < 1 and (net_stock + net_option > 0):
-                        row=[ctr, 'sold', open_stock.time // 1000000, open_stock.time % 1000000,
+                    if close_option is None: continue
+                    if close_option.ask < 0 or close_option.bid < 0: continue
+                    net_option = open_option.bid - close_option.ask
+                    close_tv, close_iv, close_theta = getComputedComponents(close_stock.time, close_stock.bid,
+                                                                         close_option.ask, optionDef.strike, optionDef.expiry)
+
+                    if close_tv < 1 and (net_stock + net_option > 0):
+                        row=['sold', open_stock.time // 1000000, open_stock.time % 1000000,
                              open_stock.ask, open_option.bid,
-                             optionDef.strike, optionDef.expiry, open_tv, open_iv, open_theta,
+                             optionDef.strike, optionDef.expiry, round(open_tv,2), round(open_iv,2), round(open_theta,2),
                              FileUtil.days_between(optionDef.expiry, open_stock.time),
                              close_stock.time // 1000000, close_stock.time % 1000000, close_stock.bid, close_option.ask,
-                             tv_sell, iv_sell, theta_sell, FileUtil.days_between(optionDef.expiry, close_stock.time),
-                             net_option, net_stock, round(net_stock + net_option,1),
+                             round(close_tv, 2), round(close_iv, 2), round(close_theta, 2),
+                             FileUtil.days_between(optionDef.expiry, close_stock.time),
+                             round(net_option, 2), round(net_stock, 2), round(net_stock + net_option, 1),
                              FileUtil.days_between(close_stock.time, open_stock.time)
                              ]
                         rows.append(row)
@@ -267,28 +270,32 @@ def main(in_zip_files, out_dir, symbol: str):
                         break
 
                 if not sold:
+                    # print("Not Sold!", last)
                     if close_option is None:
-                        row = [ctr, 'not sold1', open_stock.time // 1000000, open_stock.time % 1000000,
+                        row = ['not sold1', open_stock.time // 1000000, open_stock.time % 1000000,
                                open_stock.ask, open_option.bid,
-                               optionDef.strike, optionDef.expiry,open_tv, open_iv, open_theta,
+                               optionDef.strike, optionDef.expiry, round(open_tv,2), round(open_iv,2), round(open_theta,2),
                                FileUtil.days_between(optionDef.expiry, open_stock.time),
-                               close_stock.time // 1000000, close_stock.time % 1000000, close_stock.bid, 0,
-                               0, 0, 0, FileUtil.days_between(optionDef.expiry, close_stock.time),
+                               close_stock.time // 1000000, close_stock.time % 1000000, close_stock.bid,
+                               0, 0, 0, 0,
+                               FileUtil.days_between(optionDef.expiry, close_stock.time),
                                open_option.bid, close_stock.bid - open_stock.ask,
                                round(close_stock.bid - open_stock.ask + open_option.bid,1),
                                FileUtil.days_between(close_stock.time, open_stock.time)]
                     else:
-                        row = [ctr, 'no data', open_stock.time // 1000000, open_stock.time % 1000000,
+                        row = ['no data', open_stock.time // 1000000, open_stock.time % 1000000,
                                open_stock.ask, open_option.bid,
                                optionDef.strike, optionDef.expiry, open_tv, open_iv, open_theta,
                                FileUtil.days_between(optionDef.expiry, open_stock.time),
                                close_stock.time // 1000000, close_stock.time % 1000000, close_stock.bid, close_option.ask,
-                               tv_sell, iv_sell, theta_sell, FileUtil.days_between(optionDef.expiry, close_stock.time),
+                               round(close_tv, 2), round(close_iv, 2), round(close_theta, 2),
+                               FileUtil.days_between(optionDef.expiry, close_stock.time),
                                net_option, net_stock, round(net_stock + net_option, 1),
                                FileUtil.days_between(close_stock.time, open_stock.time)]
                     rows.append(row)
 
-                if ctr % 100 == 0: flush_row(rows, outfile)
+                if ctr % 100 == 0:
+                    flush_row(rows, outfile)
                 log.info('\t'.join([str(x) for x in row]))
 
     print(f"max seen ctr = {ctr}")
@@ -313,25 +320,6 @@ def main(in_zip_files, out_dir, symbol: str):
         if status == "sold": m = "w"
         summaryStat.to_csv(outfile.replace(".csv", '_summary.csv'), mode=m)
 
-
-    #df = pdStockQuotes.apply(lambda x: expandX(x['time'], x['last']), axis=1, result_type='expand')
-    #print(f'\tExpansion Complete: {(time.time() - startTime):.2f}')
-
-    #projection = pdStockQuotes.merge(df, on="time", how="outer")
-    #print(f'\tProjection Complete: {(time.time() - startTime):.2f}')
-    # for col in projection.columns: print(f"{ctr}: {col}")
-
-    #delta_labels = ["p5s", "p15s", "p30s", "p60s", "p300s", "p600s", "n5s", "n15s", "n30s", "n60s", "n300s", "n600s"]
-    #delta_values = [5, 15, 30, 60, 300, 6003, -5, -15, -30, -60, -300, -600]
-    #delta_quarts = [3, 3, 5, 5, 7, 7, 3, 3, 5, 5, 7, 7]
-    #bucket_labels = [ bucket_p5s, bucket_p15s....]
-
-    #projection.to_csv(outfile, float_format='%.6f', index=False)
-    #out2 = ['time', 'last']
-    #out2_1 = [col for col in projection.columns if ('theta' in col) or ('tv' in col) or ('iv' in col) or ('bid' in col) or ('ask' in col)]
-    #out2_1.sort()
-    #out2 += out2_1
-    #projection[out2].to_csv(outfile.replace(".csv","_tv.csv"), float_format='%.6f', index=False)
 
 if __name__ == "__main__":
 
@@ -359,9 +347,9 @@ if __name__ == "__main__":
     for index, zip_file in enumerate(file_list):
         # if zip_file[-16:] not in ['AAPL20220103.zip', 'AAPL20220104.zip']:
         print (index, zip_file)
-        if zip_file[-16:] in ['AAPL20220106.zip']:
+        if zip_file[-16:] in ['AAPL20220111.zip']:
             startTime = time.time()
-            main(file_list[index: index+31], out_dir_m, symbol_m)
+            main(file_list[index: index+26], out_dir_m, symbol_m)
             print(f'TIME Main: {(time.time() - startTime):.2f}')
             break
 
