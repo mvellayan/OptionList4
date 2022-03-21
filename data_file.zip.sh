@@ -1,2 +1,2 @@
-docker container run -it -v $(pwd)/IBdata:/IBapp/IBdata --user 1000:1000 -v $(pwd)/logs:/logs -v $(pwd)/ml_cp18:/IBapp/ml_cp18 -v  /home/mvellayan/.aws/:/opt/app-root/src/.aws ol4 python3 file_zip_data.py config/config-aapl.json
-docker container run -it -v $(pwd)/IBdata:/IBapp/IBdata --user 1000:1000 -v $(pwd)/logs:/logs -v $(pwd)/ml_cp18:/IBapp/ml_cp18 -v  /home/mvellayan/.aws/:/opt/app-root/src/.aws ol4 python3 file_zip_data.py config/config-fb.json
+docker container run -i -v $(pwd)/IBdata:/IBapp/IBdata --user 1000:1000 -v $(pwd)/logs:/logs -v $(pwd)/ml_cp18:/IBapp/ml_cp18 -v  /home/mvellayan/.aws/:/opt/app-root/src/.aws ol4 python3 data_file.zip.py config/config-aapl.json
+docker container run -i -v $(pwd)/IBdata:/IBapp/IBdata --user 1000:1000 -v $(pwd)/logs:/logs -v $(pwd)/ml_cp18:/IBapp/ml_cp18 -v  /home/mvellayan/.aws/:/opt/app-root/src/.aws ol4 python3 data_file.zip.py config/config-fb.json

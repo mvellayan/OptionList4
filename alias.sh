@@ -1,0 +1,5 @@
+alias logs="cd ~/Development/OptionList4; docker-compose logs -f"
+alias start="~/Development/OptionList4/start.sh"
+alias stat="docker container ls ; ~/Development/OptionList4/check_data.sh"
+alias vncStatus="systemctl status vncserver@:1"
+alias vncStart="systemctl start vncserver@:1"

@@ -8,6 +8,7 @@ RUN ./aws/install
 
 WORKDIR /IBapp/IBdata
 WORKDIR /IBapp
+RUN chmod +w -R /IBapp
 
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt

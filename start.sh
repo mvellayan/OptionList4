@@ -2,7 +2,7 @@ echo "Execution Time: `date`"
 cd ~/Development/OptionList4
 #docker container ls
 #docker ps -f ancestor=ol4
-if [ "$(docker ps -f ancestor=ol4 | wc -l)" -eq 3 ]; then
+if [ "$(docker ps -f ancestor=ol4 | wc -l)" -eq 5 ]; then
    echo "Seems ok"
    docker ps -f ancestor=ol4
 else
