@@ -48,7 +48,6 @@ class StockQuote:
         # self.implied_volatility = en[11]
 
 
-
 def getComputedComponents(quoteTime, stockQuote, optionQuote, strike, expiry):
     theta = iv = tv = None
     if stockQuote > 0:
@@ -161,8 +160,9 @@ def main(model_no, in_zip_files, out_dir, symbol: str):
     global pdStockQuotes, pdOptionList, pdOptionQuotes_by_timeContractNo, projection, df, pdOptionList_wData
 
     #outfile = out_dir + "ml_iteration_" + symbol + getDateStrFromPath(in_zip_files[0]) + ".csv"
-    outfile = out_dir + "run_" + str(model_no) + "_" + ml_model.model_logic.get_short_title(model_no) \
-              + "_" + datetime.now().strftime('%m%d%H%M%S') + ".csv"
+    outfile = out_dir + "run_" + datetime.now().strftime('%d%b_%H%M%S') \
+              + str(model_no) + ml_model.model_logic.get_short_title(model_no) + ".csv"
+
     log.info(f"Processing {in_zip_files[0]} => {outfile}")
 
     pdOptionList = None  # Data Frame all options Contracts for the symbol
@@ -183,10 +183,10 @@ def main(model_no, in_zip_files, out_dir, symbol: str):
     del pdStockQuotes
 
     fields = ["sold", "o_date", "o_time", "o_stock_ask", "o_option_bid", "strike", "expiry", "o_tv", "o_iv",
-              "o_theta", "o_dr", "c_date", "c_time", "c_sock_bid", "c_option_ask", "c_tv", "c_iv", "c_theta",
+              "o_theta", "o_dr", "c_date", "c_time", "c_stock_bid", "c_option_ask", "c_tv", "c_iv", "c_theta",
               "c_dr", "net_option", "net_stock", "net", "dur-days"]
 
-    flush_row([ fields ], outfile, write_mode="w", flush_all=True)
+    flush_row([fields], outfile, write_mode="w", flush_all=True)
     print('\t'.join([x for x in fields]))
 
     maxStockIndex = len(pdStocks)
@@ -288,26 +288,60 @@ def main(model_no, in_zip_files, out_dir, symbol: str):
     print("\n\n############################################################################")
     print("final results\n")
     res = pd.DataFrame(rows, columns=fields)
+    res["net_per_day"] = res["net"] / res["dur-days"]
 
+    # reference
+    # https://xlsxwriter.readthedocs.io/working_with_pandas.html
     statuses = ['sold', 'expired', 'not sold1', 'no data']
+    summary_outfile = outfile.replace(".csv", '_summary.xlsx')
     for status in statuses:
         summaryPD = res.loc[res['sold'] == status]
         summaryStat = summaryPD.groupby('net').agg({
-            'o_theta': ['count', 'mean'], 'c_theta': ['mean'],
-            'o_tv': ['mean'], 'c_tv': ['mean'],
-            'o_iv': ['mean'], 'c_iv': ['mean'],
-            'o_dr': ['mean', 'std'], 'c_dr': ['mean'],
-            'net_option': ['mean'], 'net_stock': ['mean'],
-            'dur-days': ['mean'], 'net': ['mean', 'sum']
+            'o_theta': ['count', 'mean'],
+            'o_tv': ['mean'],
+            'o_iv': ['mean'],
+            'o_dr': ['mean'],
+            'c_theta': ['mean'],
+            'c_tv': ['mean'],
+            'c_iv': ['mean'],
+            'c_dr': ['mean'],
+            'net_option': ['mean'],
+            'net_stock': ['mean'],
+            'dur-days': ['mean'],
+            'net_per_day': ['mean'],
+            'net': ['mean', 'sum']
             })
+        ## remove zeros in net, meybe
         summaryStat.index.name = status
-        print(df)
+        summaryStat.to_excel(summary_outfile)
 
-        summary_outfile = outfile.replace(".csv", '_summary.csv')
-        if status == "sold":
-            with open(summary_outfile, "w") as csvfile:
-                csvfile.write("#" + ml_model.model_logic.get_description(model_no) + "\n")
-        summaryStat.to_csv(summary_outfile, mode="a")
+
+    fields = ["sold", "o_date", "o_time", "o_stock_ask", "o_option_bid", "strike", "expiry", "o_tv", "o_iv",
+              "o_theta", "o_dr", "c_date", "c_time", "c_stock_bid", "c_option_ask", "c_tv", "c_iv", "c_theta",
+              "c_dr", "net_option", "net_stock", "net", "dur-days"]
+    # reference
+    # https://xlsxwriter.readthedocs.io/working_with_pandas.html
+    summary_outfile = outfile.replace(".csv", '_summary_by_day.xlsx')
+    summaryStat = res.groupby(['o_date', 'sold', 'expiry']).agg({
+        'o_stock_ask': ['count', 'mean', 'min', 'max'],
+        'o_theta': ['mean'],
+        'o_tv': ['mean'],
+        'o_iv': ['mean'],
+        'o_dr': ['mean'],
+        'c_stock_bid': ['mean', 'min', 'max'],
+        'c_theta': ['mean'],
+        'c_tv': ['mean'],
+        'c_iv': ['mean'],
+        'c_dr': ['mean'],
+        'net_option': ['mean'],
+        'net_stock': ['mean'],
+        'dur-days': ['mean'],
+        'net_per_day': ['mean'],
+        'net': ['mean', 'sum']
+        })
+    # summaryStat.index.name = status
+    summaryStat.to_excel(summary_outfile)
+
 
 
 if __name__ == "__main__":
@@ -339,7 +373,7 @@ if __name__ == "__main__":
         print (index, zip_file)
         if zip_file[-16:] in ['AAPL20220111.zip']:
             startTime = time.time()
-            main(model_no,  file_list[index: index+26], out_dir_m, symbol_m)
+            main(model_no,  file_list[index: index+2], out_dir_m, symbol_m)
             print(f'TIME Main: {(time.time() - startTime):.2f}')
             break
 
