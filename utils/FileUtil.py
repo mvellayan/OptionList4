@@ -123,7 +123,11 @@ def getDateObjFromStr(inTimeParam, in_format="YYYYMMDDHHMMSS"):
         raise Exception("unknown inTimeparam! =(")
 
     if in_format == "YYYYMMDDHHMMSS":
-        return datetime.strptime(inTime, "%Y%m%d%H%M%S")
+        rValue = localDateCash.get(inTime, None)
+        if rValue is None:
+            rValue = datetime.strptime(inTime, "%Y%m%d%H%M%S")
+            localDateCash[inTime] = rValue
+        return rValue
         #return datetime(int(inTime[0:4]), int(inTime[4:6]),
         #            int(inTime[6:8]), int(inTime[8:10]),
         #            int(inTime[10:12]), int(inTime[12:14]))
@@ -255,7 +259,7 @@ def getDateTimeStamp(format_type=1):
 
 
 def get_sec_to_4pm(in_date: datetime):
-    assert type(in_date) == datetime, "Expecting data time object, but found " + in_date
+    # assert type(in_date) == datetime, "Expecting data time object, but found " + in_date
     start_date = in_date
     pre_open = start_date.replace(hour=9, minute=30)
     end_date = start_date.replace(hour=16, minute=0)
@@ -276,7 +280,6 @@ def get_sec_to_expire(in_start_date: datetime, in_end_date: datetime):
     else:
         days = np.busday_count(start_date_str,  end_date_str)
         return sec1 + (days-1) * (60 * 390)
-
 
 def unit_test():
     # Test get_sec_to_4_pm
