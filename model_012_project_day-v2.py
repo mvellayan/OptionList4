@@ -160,8 +160,7 @@ def main(model_no, in_zip_files, out_dir, symbol: str):
     global pdStockQuotes, pdOptionList, pdOptionQuotes_by_timeContractNo, projection, df, pdOptionList_wData
 
     #outfile = out_dir + "ml_iteration_" + symbol + getDateStrFromPath(in_zip_files[0]) + ".csv"
-    outfile = out_dir + "run_" + datetime.now().strftime('%d%b_%H%M%S') \
-              + str(model_no) + ml_model.model_logic.get_short_title(model_no) + ".csv"
+    outfile = out_dir + "run_" + str(model_no) + "_" + datetime.now().strftime('%d%b_%H%M%S') + ".csv"
 
     log.info(f"Processing {in_zip_files[0]} => {outfile}")
 
@@ -383,28 +382,24 @@ if __name__ == "__main__":
     config = FileUtil.readConfig(sys.argv[1])
     symbol_m = config["stock"]
 
-    data_dir_m = os.getcwd() + "/" + config["ib"]["data_dir"] + "/"
+    in_dir_m = os.getcwd() + "/" + config["ib"]["data_dir"] + "/"
     out_dir_m = os.getcwd() + "/" + "ml_projection/data/"
 
-    print("Main scanning: " + data_dir_m)
+    print("Main scanning: " + in_dir_m)
 
     file_list = []
-    for rootdir, dirs, files in os.walk(data_dir_m):
+    for rootdir, dirs, files in os.walk(in_dir_m):
         for subdir in dirs:
             full_dir = os.path.join(rootdir, subdir)
             search_mask = full_dir + "/" + symbol_m + '*.zip'
             file_list += glob.glob(search_mask)
-
-            #if glob.glob(search_mask1) or glob.glob(search_mask2):
-            #    main(full_dir, symbol)
-
     file_list.sort()
+
     for index, zip_file in enumerate(file_list):
-        # if zip_file[-16:] not in ['AAPL20220103.zip', 'AAPL20220104.zip']:
-        print (index, zip_file)
+        print(index, zip_file)
         if zip_file[-16:] in ['AAPL20220111.zip']:
             startTime = time.time()
-            main(model_no,  file_list[index: index+7], out_dir_m, symbol_m)
+            main(model_no,  file_list[index: index+21], out_dir_m, symbol_m)
             print(f'TIME Main: {(time.time() - startTime):.2f}')
             break
 
