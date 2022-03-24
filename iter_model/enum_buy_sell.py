@@ -13,20 +13,24 @@ import pytz
 from timeit import default_timer as timer
 from datetime import timedelta
 
-import ml_model
+# import ml_model
 from utils import FileUtil, IBUtil
 from utils.FileUtil import makeDirectory, unzip_file, get_sec_to_expire, getDateStrFromPath, dateAddInt
 from utils.IBUtil import get_expiry_list
 import csv
 import ml_model.model_logic
 
-SAMPLING_SECONDS_INTERVAL = 30
-NUM_FILES_TO_READ = 16
 DAYS_ALREADY_PROCESSED = []
 DAYS_LOADED = []
-MAX_DAYS_TO_PROCESS = 5
-SKIP_INTERVAL = 20 # = random.randint( int(SAMPLING_SECONDS_INTERVAL * 0.70), int(SAMPLING_SECONDS_INTERVAL * 1.3))
 
+MAX_DAYS_TO_PROCESS = 20  # from the param date, how many days to model?
+MAX_EXPIR_WEEKS = 3 # number of expiration weeks to consider.  data <= 3.
+MAX_FILES_TO_READ = MAX_DAYS_TO_PROCESS + (MAX_EXPIR_WEEKS * 5) + 1   # from the param date, how many more day's data to load
+
+SKIP_OPEN_INTERVAL = 20  #  consider every n seconds for a open position
+SKIP_CLOSE_INTERVAL = 5  #  for each open position,look for clossing opportunity every n seconds
+
+MIN_HOLD_SECONDS = 300   # minimum amount of time to hold a position before looking for close
 
 logging.basicConfig(level=logging.ERROR,  format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%H:%M:%S')
 log = logging.getLogger("myLogger")
@@ -188,7 +192,7 @@ def get_processed_dates(outfile_path):
     return retArr
 
 
-def main(in_zip_files, out_dir: str, symbol: str):
+def main(symbol: str, in_zip_files, out_dir: str):
     global pdStockQuotes, pdOptionList, pdOptionQuotes_by_timeContractNo, projection, df, pdOptionList_wData, last_index
 
     # Reset all globals
@@ -218,6 +222,7 @@ def main(in_zip_files, out_dir: str, symbol: str):
         ctr = 0
         rows = []
         last_index = 0
+        skip_count = 0
         last_quote_day = "<none>"
         outfile_path = out_dir + "buy_sell_" + str(model_no)
         Path(outfile_path).mkdir(parents=True, exist_ok=True)
@@ -226,19 +231,21 @@ def main(in_zip_files, out_dir: str, symbol: str):
         for open_stock in pdStocks.itertuples():
             quote_day = str(open_stock.time)[0:8]
             if quote_day != last_quote_day:
-                print(f"Changing quote date new {quote_day} old {last_quote_day} model {model_no}")
+                print(f"\tChanging quote date new {quote_day} old {last_quote_day} skip_count {skip_count} model {model_no}")
                 if quote_day in processed:
-                    print(f"This day {quote_day} will be skipped.  In processed list {processed} ")
+                    print(f"This day {quote_day} will be skipped.  In already processed list {processed} ")
+                    skip_count = 0
                 if quote_day not in DAYS_TO_LOAD:
                     print(f"This day {quote_day} will be skipped.  Not in DAYS_TO_LOAD list {DAYS_TO_LOAD} ")
+                    skip_count = 0
                 last_quote_day = quote_day
             if quote_day in processed: continue
             if quote_day not in DAYS_TO_LOAD: continue
             # print(f"Considering day {quote_day} for model # {model_no}.  Loading Days = {DAYS_TO_LOADED} / max = {MAX_DAYS_TO_PROCESS}")
 
             ctr += 1
-            if ctr % SKIP_INTERVAL != 0: continue  # analyze one per (average) minute.  too much data.
-            expiries = get_expiry_list(open_stock.time, noWeeks=2, pdOptionList=pdOptionList_wData)
+            if ctr % SKIP_OPEN_INTERVAL != 0: continue  # analyze one per (average) minute.  too much data.
+            expiries = get_expiry_list(open_stock.time, noWeeks=MAX_EXPIR_WEEKS, pdOptionList=pdOptionList_wData)
             pdOptions = pdOptionList_wData.loc[pdOptionList_wData['expiry'].isin(expiries)]
             for optionDef in pdOptions.itertuples():
                 open_option = pdOptionQuotes_by_timeContractNo.get(str(open_stock.time) + ":" + str(optionDef.con_id), None)
@@ -260,6 +267,8 @@ def main(in_zip_files, out_dir: str, symbol: str):
                         flush_row(rows, outfile_path, model_no, fields)
                         log.info(str(model_no) + " " + str(ctr) + " " + '\t'.join([str(x) for x in row]))
                     # break
+                else:
+                    skip_count += 1
 
         flush_row(rows, outfile_path, model_no, fields)
 
@@ -267,7 +276,7 @@ def main(in_zip_files, out_dir: str, symbol: str):
 def find_close(maxStockIndex, model_no, npStocks, oexp, open_iv, open_option, open_stock, open_theta, open_tv,
                optionDef):
     sold = False
-    for idx in range(open_stock.Index + 300, maxStockIndex, random.randint(10, 20)):
+    for idx in range(open_stock.Index + MIN_HOLD_SECONDS, maxStockIndex, SKIP_CLOSE_INTERVAL):
         close_stock = StockQuote(npStocks[idx])
         close_option = pdOptionQuotes_by_timeContractNo.get(str(int(close_stock.time)) + ":" + str(optionDef.con_id),
                                                             None)
@@ -347,7 +356,7 @@ def getParams():
     file_list.sort()
     for index, zip_file in enumerate(file_list):
         if zip_file[-16:] in [l_symbol + start_date + '.zip']:
-            file_list_subset = file_list[index:index + NUM_FILES_TO_READ]
+            file_list_subset = file_list[index:index + MAX_FILES_TO_READ]
             # file_list_subset = file_list[index:index + 16]
             break
 
@@ -357,6 +366,6 @@ def getParams():
 if __name__ == "__main__":
     symbol, file_list, out_dir = getParams()
     startTime = time.time()
-    main(file_list, out_dir, symbol)
+    main(symbol, file_list, out_dir)
     print(f'TIME Main: {(time.time() - startTime):.2f}')
 
