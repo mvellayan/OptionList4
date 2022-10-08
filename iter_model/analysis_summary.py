@@ -20,9 +20,11 @@ from utils.IBUtil import get_expiry_list
 import csv
 import ml_model.model_logic
 
+SPLIT_INDEX_FIELDS = True
+
 
 ######################################################################################################################
-def write_summary1(pdTrades, outfile, groupby_arr):
+def write_summary1(pdTrades, outfile, groupby_arr, unnest=True):
     fields = ["sold", "o_date", "o_time", "o_stock_ask", "o_option_bid", "strike", "expiry", "o_tv", "o_iv",
               "o_theta", "o_dr", "c_date", "c_time", "c_stock_bid", "c_option_ask", "c_tv", "c_iv", "c_theta",
               "c_dr", "net_option", "net_stock", "net", "dur-days"]
@@ -53,9 +55,13 @@ def write_summary1(pdTrades, outfile, groupby_arr):
             'net_per_day': ['mean'],
             'net': ['mean', 'sum']
             })
+
         # summaryStat.index.name = status
+        if unnest:
+            summaryStat = summaryStat.reset_index()
+
         sheet = 'model ' + model_no
-        summaryStat.to_excel(writer, sheet_name=sheet)
+        summaryStat.to_excel(writer, sheet_name=sheet, freeze_panes=[3,len(groupby_arr)])
         worksheet = writer.sheets[sheet]
         # Add some cell formats.
         format2 = workbook.add_format({'num_format': '#,##0.00'})
@@ -85,6 +91,7 @@ def getParams():
             file_list += glob.glob(search_mask)
 
     file_list.sort()
+    print(f"processing filelist{file_list}")
 
     return l_symbol, file_list, l_out_dir
 
@@ -92,6 +99,7 @@ def getParams():
 def load_trades(file_list):
     pdTrades = None
     for file in file_list:
+        # print(file)
         curPd = pd.read_csv(file)
         file_name= file.split("/")[-1]
         model_no = file_name.split("_")[0]
@@ -109,10 +117,11 @@ if __name__ == "__main__":
     startTime = time.time()
     pdTrades = load_trades(file_list)
 
+
     outfile = out_dir + 'summary_status_and_day.xlsx'
-    write_summary1(pdTrades, outfile, [ 'sold', 'o_date', 'expiry'])
+    write_summary1(pdTrades, outfile, [ 'sold', 'o_date', 'expiry'], SPLIT_INDEX_FIELDS)
 
     outfile = out_dir + 'summary_dr_and_net.xlsx'
-    write_summary1(pdTrades, outfile, ['sold', 'o_dr', 'net'])
+    write_summary1(pdTrades, outfile, ['sold', 'o_dr', 'net'], SPLIT_INDEX_FIELDS)
 print(f'TIME Main: {(time.time() - startTime):.2f}')
 

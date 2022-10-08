@@ -3,17 +3,12 @@ from pprint import pprint
 from utils import FileUtil, IBUtil
 import sys
 
-def main(configFileName):
-    global config
-    config = FileUtil.readConfig(configFileName)
+def main():
 
     ib = IB()
-    ib.connect('127.0.0.1', config["tws_port"], clientId=101)
-
+    ib.connect('192.168.1.211', "9999", clientId=101)
     stock = Stock('AAPL', 'SMART', 'USD')
-
     order = MarketOrder('BUY', 5)
-
     trade = ib.placeOrder(stock, order)
 
     print(trade)
@@ -27,19 +22,24 @@ def main(configFileName):
 
     ib.sleep(3)
 
-    print('Orders size: ',  len(ib.orders()))
+    print('\nOrders size: ',  len(ib.orders()))
     for order in ib.orders():
-        print("My stocks buy placed orders are:")
-        print(order)
+        print("\tMy stocks buy placed orders are:")
+        print("\t", order)
 
     ib.run()
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("\n\nUsage: collect_data.py <config_file.yml>\n\n")
-        sys.exit(0)
-    else:
-        print("using config file [" + sys.argv[1] + "]")
 
-    main(sys.argv[1])
+    main()
+
+
+
+
+
+
+
+
+
+

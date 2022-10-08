@@ -276,8 +276,11 @@ def main(symbol: str, in_zip_files, out_dir: str):
 def find_close(maxStockIndex, model_no, npStocks, oexp, open_iv, open_option, open_stock, open_theta, open_tv,
                optionDef):
     sold = False
+    close_option = None
+    close_stock = None
     for idx in range(open_stock.Index + MIN_HOLD_SECONDS, maxStockIndex, SKIP_CLOSE_INTERVAL):
         close_stock = StockQuote(npStocks[idx])
+        if close_stock is None: continue
         close_option = pdOptionQuotes_by_timeContractNo.get(str(int(close_stock.time)) + ":" + str(optionDef.con_id),
                                                             None)
         net_stock = min(close_stock.bid, optionDef.strike) - open_stock.ask
@@ -314,27 +317,35 @@ def find_close(maxStockIndex, model_no, npStocks, oexp, open_iv, open_option, op
 
     if not sold:
         # print("Not Sold!", last)
-        if close_option is None:
-            row = ['not sold1', open_stock.time // 1000000, open_stock.time % 1000000,
+        if close_stock is None:
+            print("close_stock is None! Unexpected")
+            row = ['unexpected', open_stock.time // 1000000, open_stock.time % 1000000,
                    open_stock.ask, open_option.bid,
                    optionDef.strike, optionDef.expiry, round(open_tv, 2), round(open_iv, 2), round(open_theta, 2),
                    (optionDef.expiry_do - open_stock.time_do).days,
-                   close_stock.time // 1000000, close_stock.time % 1000000, close_stock.bid,
-                   0, 0, 0, 0,
-                   FileUtil.days_between(optionDef.expiry, close_stock.time),
-                   open_option.bid, close_stock.bid - open_stock.ask,
-                   round(close_stock.bid - open_stock.ask + open_option.bid, 1),
-                   (close_stock.time_do - open_stock.time_do).days]
+                   0, 0, 0, 0, 0, 0, 0, 0, open_option.bid, 0, 0, 0]
         else:
-            row = ['no data', open_stock.time // 1000000, open_stock.time % 1000000,
-                   open_stock.ask, open_option.bid,
-                   optionDef.strike, optionDef.expiry, open_tv, open_iv, open_theta,
-                   (optionDef.expiry_do - open_stock.time_do).days,
-                   close_stock.time // 1000000, close_stock.time % 1000000, close_stock.bid, close_option.ask,
-                   round(close_tv, 2), round(close_iv, 2), round(close_theta, 2),
-                   FileUtil.days_between(optionDef.expiry, close_stock.time),
-                   net_option, net_stock, round(net_stock + net_option, 1),
-                   (close_stock.time_do - open_stock.time_do).days]
+            if close_option is None:
+                row = ['not sold1', open_stock.time // 1000000, open_stock.time % 1000000,
+                       open_stock.ask, open_option.bid,
+                       optionDef.strike, optionDef.expiry, round(open_tv, 2), round(open_iv, 2), round(open_theta, 2),
+                       (optionDef.expiry_do - open_stock.time_do).days,
+                       close_stock.time // 1000000, close_stock.time % 1000000, close_stock.bid,
+                       0, 0, 0, 0,
+                       FileUtil.days_between(optionDef.expiry, close_stock.time),
+                       open_option.bid, close_stock.bid - open_stock.ask,
+                       round(close_stock.bid - open_stock.ask + open_option.bid, 1),
+                       (close_stock.time_do - open_stock.time_do).days]
+            else:
+                row = ['no data', open_stock.time // 1000000, open_stock.time % 1000000,
+                       open_stock.ask, open_option.bid,
+                       optionDef.strike, optionDef.expiry, open_tv, open_iv, open_theta,
+                       (optionDef.expiry_do - open_stock.time_do).days,
+                       close_stock.time // 1000000, close_stock.time % 1000000, close_stock.bid, close_option.ask,
+                       round(close_tv, 2), round(close_iv, 2), round(close_theta, 2),
+                       FileUtil.days_between(optionDef.expiry, close_stock.time),
+                       net_option, net_stock, round(net_stock + net_option, 1),
+                       (close_stock.time_do - open_stock.time_do).days]
     return row
 
 

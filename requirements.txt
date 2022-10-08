@@ -14,3 +14,5 @@ seaborn
 sklearn
 # tensorflow
 xgboost
+xlsxwriter
+
